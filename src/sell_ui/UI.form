@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="sell_ui.UI">
+  <grid id="27dc6" binding="mainPanel" layout-manager="FormLayout">
+    <rowspec value="fill:399px:grow"/>
+    <colspec value="fill:299px:noGrow"/>
+    <colspec value="left:31dlu:noGrow"/>
+    <colspec value="fill:max(d;4px):grow"/>
+    <colspec value="left:4dlu:noGrow"/>
+    <constraints>
+      <xy x="20" y="20" width="663" height="400"/>
+    </constraints>
+    <properties>
+      <minimumSize width="200" height="200"/>
+      <preferredSize width="1000" height="500"/>
+    </properties>
+    <border type="none"/>
+    <children>
+      <grid id="2165b" binding="cartPanel" layout-manager="FormLayout">
+        <rowspec value="fill:d:grow"/>
+        <colspec value="fill:d:grow"/>
+        <constraints>
+          <grid row="0" column="2" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <forms defaultalign-horz="false" defaultalign-vert="false"/>
+        </constraints>
+        <properties>
+          <background color="-2236963"/>
+          <maximumSize width="2147483647" height="2147483647"/>
+          <preferredSize width="200" height="200"/>
+        </properties>
+        <border type="none" title="Cart"/>
+        <children>
+          <scrollpane id="5f13e" binding="tableScrollPane">
+            <constraints>
+              <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+              <forms defaultalign-horz="false" defaultalign-vert="false"/>
+            </constraints>
+            <properties>
+              <background color="-2236963"/>
+              <foreground color="-2236963"/>
+              <maximumSize width="2147483647" height="2147483647"/>
+              <opaque value="true"/>
+              <preferredSize width="-1" height="-1"/>
+            </properties>
+            <border type="none"/>
+            <children>
+              <component id="2e0ad" class="javax.swing.JTable" binding="itemsTable">
+                <constraints/>
+                <properties>
+                  <background color="-1"/>
+                  <fillsViewportHeight value="true"/>
+                  <gridColor color="-10654338"/>
+                  <maximumSize width="2147483647" height="2147483647"/>
+                  <opaque value="true"/>
+                  <preferredScrollableViewportSize width="-1" height="-1"/>
+                  <visible value="true"/>
+                </properties>
+              </component>
+            </children>
+          </scrollpane>
+        </children>
+      </grid>
+      <grid id="f054a" binding="sidePanel" layout-manager="FormLayout">
+        <rowspec value="center:d:noGrow"/>
+        <rowspec value="top:4dlu:noGrow"/>
+        <rowspec value="center:43px:grow"/>
+        <colspec value="fill:d:grow"/>
+        <constraints>
+          <grid row="0" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <forms top="1" left="1" bottom="1" right="1"/>
+        </constraints>
+        <properties/>
+        <border type="empty"/>
+        <children>
+          <grid id="858e3" binding="inputPanel" layout-manager="FormLayout">
+            <rowspec value="center:d:noGrow"/>
+            <colspec value="fill:51px:noGrow"/>
+            <colspec value="left:4dlu:noGrow"/>
+            <colspec value="fill:183px:grow"/>
+            <constraints>
+              <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="1" fill="1" indent="0" use-parent-layout="false"/>
+              <forms defaultalign-vert="false"/>
+            </constraints>
+            <properties/>
+            <border type="none" title="Input"/>
+            <children>
+              <component id="a95e7" class="javax.swing.JLabel">
+                <constraints>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
+                  <forms defaultalign-horz="false" defaultalign-vert="false"/>
+                </constraints>
+                <properties>
+                  <focusCycleRoot value="false"/>
+                  <font style="1"/>
+                  <text value="Total:"/>
+                </properties>
+              </component>
+              <component id="d086f" class="javax.swing.JFormattedTextField" binding="totalFormattedTextField">
+                <constraints>
+                  <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="1" fill="1" indent="0" use-parent-layout="false">
+                    <preferred-size width="150" height="-1"/>
+                  </grid>
+                  <forms defaultalign-horz="false" defaultalign-vert="false"/>
+                </constraints>
+                <properties>
+                  <columns value="7"/>
+                  <editable value="false"/>
+                  <font size="16" style="1"/>
+                  <horizontalAlignment value="0"/>
+                  <maximumSize width="11" height="2147483647"/>
+                  <minimumSize width="10" height="30"/>
+                  <preferredSize width="115" height="40"/>
+                </properties>
+              </component>
+            </children>
+          </grid>
+          <grid id="aa534" binding="changePanel" layout-manager="FormLayout">
+            <rowspec value="center:d:noGrow"/>
+            <rowspec value="top:4dlu:noGrow"/>
+            <rowspec value="center:max(d;4px):noGrow"/>
+            <colspec value="fill:d:noGrow"/>
+            <colspec value="left:4dlu:noGrow"/>
+            <colspec value="fill:d:grow"/>
+            <constraints>
+              <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="2" fill="1" indent="0" use-parent-layout="false"/>
+              <forms top="5" left="5" bottom="5" right="5" defaultalign-vert="false"/>
+            </constraints>
+            <properties>
+              <visible value="false"/>
+            </properties>
+            <border type="none" title="Change"/>
+            <children>
+              <component id="443cb" class="javax.swing.JLabel">
+                <constraints>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <forms/>
+                </constraints>
+                <properties>
+                  <text value="Cash:"/>
+                </properties>
+              </component>
+              <component id="d620e" class="javax.swing.JLabel">
+                <constraints>
+                  <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <forms/>
+                </constraints>
+                <properties>
+                  <text value="Change:"/>
+                </properties>
+              </component>
+              <component id="73137" class="javax.swing.JFormattedTextField" binding="changeformattedTextField">
+                <constraints>
+                  <grid row="2" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="0" indent="0" use-parent-layout="false">
+                    <preferred-size width="150" height="-1"/>
+                  </grid>
+                  <forms defaultalign-horz="false"/>
+                </constraints>
+                <properties>
+                  <columns value="20"/>
+                </properties>
+              </component>
+              <component id="a6535" class="javax.swing.JFormattedTextField" binding="cashformattedTextField">
+                <constraints>
+                  <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="0" indent="0" use-parent-layout="false">
+                    <preferred-size width="150" height="-1"/>
+                  </grid>
+                  <forms defaultalign-horz="false"/>
+                </constraints>
+                <properties>
+                  <columns value="20"/>
+                </properties>
+              </component>
+            </children>
+          </grid>
+        </children>
+      </grid>
+    </children>
+  </grid>
+</form>
