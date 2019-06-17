@@ -1,6 +1,6 @@
 package model.databaseUtility;
 
-
+//TODO: change this to an enum
 public final class SqlStrings {
 
     public static final String PRODUCTION_DB_NAME = "public";

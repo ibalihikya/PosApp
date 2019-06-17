@@ -1,6 +1,9 @@
 package model;
 
-import java.sql.Date;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 /**
  * A product to be inserted or retrieved from the database products table
@@ -12,11 +15,15 @@ public class Product {
     private Category category;
     private String barcode;
     private String units;
-    protected int stockLowThreshold;
-    private  double price;
+    protected double stockLowThreshold;
+    private double costprice;
+    private  double price; // selling price
+    private double markup;
     protected String comment;
-    protected Date dateCreated;
-    protected Date lastModifiedDate;
+//    protected Date dateCreated;
+//    protected Date lastModifiedDate;
+    protected String dateCreated;
+    protected String lastModifiedDate;
 
     public Product() {
         category = new Category();
@@ -27,27 +34,43 @@ public class Product {
         this.stockLowThreshold = 0;
     }
 
-    public int getStockLowThreshold() {
+    public double getCostprice() {
+        return costprice;
+    }
+
+    public double getMarkup() {
+        return markup;
+    }
+
+    public void setMarkup(double markup) {
+        this.markup = markup;
+    }
+
+    public void setCostprice(double costprice) {
+        this.costprice = costprice;
+    }
+
+    public double getStockLowThreshold() {
         return stockLowThreshold;
     }
 
-    public void setStockLowThreshold(int stockLowThreshold) {
+    public void setStockLowThreshold(double stockLowThreshold) {
         this.stockLowThreshold = stockLowThreshold;
     }
 
-    public Date getDateCreated() {
+    public String getDateCreated() {
         return dateCreated;
     }
 
-    public void setDateCreated(Date dateCreated) {
+    public void setDateCreated(String dateCreated) {
         this.dateCreated = dateCreated;
     }
 
-    public Date getLastModifiedDate() {
+    public String getLastModifiedDate() {
         return lastModifiedDate;
     }
 
-    public void setLastModifiedDate(Date lastModifiedDate) {
+    public void setLastModifiedDate(String lastModifiedDate) {
         this.lastModifiedDate = lastModifiedDate;
     }
 
@@ -132,7 +155,9 @@ public class Product {
                 productName,
                 description,
                 category,
+                costprice,
                 price,
+                markup,
                 units,
                 stockLowThreshold,
                 barcode,
@@ -147,8 +172,17 @@ public class Product {
     @Override
     public String toString() {
 
-        //return this.productName + " | " + this.price;
-        return this.productName;
+        DecimalFormat formatter = (DecimalFormat) NumberFormat.getInstance(Locale.US);
+        DecimalFormatSymbols symbols = formatter.getDecimalFormatSymbols();
+
+        symbols.setGroupingSeparator(',');
+        formatter.setDecimalFormatSymbols(symbols);
+
+        if(this.productName == null){
+            return "";
+        }
+
+        return this.productName + " | " + formatter.format(Math.round(this.price));
     }
 
     public static Product valueOf(String s){

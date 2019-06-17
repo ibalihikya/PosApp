@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><business>
+    <header>
+        <businessname>ABC SHOPPERS</businessname>
+        <location>Kikubo</location>
+        <phone1>07891912121</phone1>
+        <phone2>0799203021</phone2>
+        <tin>10009124561</tin>
+    </header>
+
+    <till>
+        <till_no>1</till_no>
+    </till>
+
+    <server>
+        <server_ip>127.0.0.1</server_ip>
+    </server>
+</business>

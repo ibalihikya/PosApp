@@ -39,7 +39,6 @@ public class Reports {
     private JPanel stopDatePanel;
     private JButton searchButton;
     private JPanel stockPanel;
-    private JTable stockStatusTable;
     private JFormattedTextField totalSalesformattedTextField;
     private JButton refreshButton;
     private JButton exportToExcelButton;
@@ -100,7 +99,7 @@ public class Reports {
         startDatePanel.add(datePickerFXPanel);
         stopDatePanel.add(stopDatePickerFXPanel);
 
-        populateStockTable();
+        //populateStockTable();
         populateProductslist();
 
         salesTable = new JTable();
@@ -479,26 +478,9 @@ public class Reports {
         }
     }
 
-    private void populateStockTable(){
-        ArrayList<StockItem> stockItems = getStockStatus();
-        Object[][] stock2D = new Object[stockItems.size()][];
-        int i = 0;
-        for(StockItem stockItem : stockItems){
-            stock2D[i] = stockItem.toArray2();
-            i++;
-        }
-        stockStatusTable.setModel(new ItemsTableModel(stock2D,stockStatusTableColumnNames));
-    }
 
-    private ArrayList<StockItem> getStockStatus(){
-        ArrayList<StockItem> stockItems = new ArrayList<>();
-        try {
-            stockItems = mAcess.getStockStatus();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return stockItems;
-    }
+
+
 
     public static void init(){
         datePickerFXPanel = new JFXPanel();

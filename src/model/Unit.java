@@ -31,4 +31,22 @@ public class Unit {
     public String toString() {
         return this.unitName;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Unit)) return false;
+
+        Unit unit = (Unit) o;
+
+        if (unitId != unit.unitId) return false;
+        return unitName.equals(unit.unitName);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = unitId;
+        result = 31 * result + unitName.hashCode();
+        return result;
+    }
 }

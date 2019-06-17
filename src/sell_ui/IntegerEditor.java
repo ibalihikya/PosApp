@@ -87,6 +87,7 @@ public class IntegerEditor extends DefaultCellEditor {
                 } else try {              //The text is valid,
                     ftf.commitEdit();     //so use it.
                     ftf.postActionEvent(); //stop editing
+                    //return focus to the Jframe to facilitate barcode scanning
                     KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
                     fm.getActiveWindow().requestFocusInWindow();
                 } catch (java.text.ParseException exc) { }

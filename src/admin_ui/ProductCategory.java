@@ -1,7 +1,15 @@
 package admin_ui;
 
-import ca.odell.glazedlists.TextFilterator;
+import Utilities.SettingsParser;
+import authentication.SaltedMD5;
+import ca.odell.glazedlists.*;
+import ca.odell.glazedlists.gui.TableFormat;
+import ca.odell.glazedlists.matchers.TextMatcherEditor;
+import ca.odell.glazedlists.matchers.ThreadedMatcherEditor;
 import ca.odell.glazedlists.swing.AutoCompleteSupport;
+import ca.odell.glazedlists.swing.DefaultEventTableModel;
+import ca.odell.glazedlists.swing.EventTableModel;
+import ca.odell.glazedlists.swing.TextComponentMatcherEditor;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,27 +21,40 @@ import model.*;
 import model.databaseUtility.MySqlAccess;
 import model.databaseUtility.SqlStrings;
 import org.postgresql.util.PSQLException;
+import print.ReceiptHeader;
+import print.StatementPrinter;
 import sell_ui.ItemsTableModel;
+import sell_ui.ProductDialog;
 import validation.ComboNotSelectedValidator;
 import validation.NotEmptyNumberValidator;
 import validation.NotEmptyValidator;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.event.*;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.awt.print.PageFormat;
+import java.awt.print.Paper;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
+import java.lang.reflect.InvocationTargetException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 
-public class ProductCategory {
+public class ProductCategory extends JFrame implements TableModelListener{
+    //private final ItemsTableModel itemsSuppliedTableModel;
     private JPanel productCategoryPanel;
     private JTabbedPane tabbedPane;
     private JTextField categoryNametextField;
@@ -61,7 +82,6 @@ public class ProductCategory {
     private JTextArea stockCommentsTextArea;
     private JButton submitStockButton;
     private JButton cancelStockButton;
-    private JButton refreshStockButton;
     private JTable stockTable;
     private JPanel addProductPanel;
     private JPanel salesReportsPanel;
@@ -83,19 +103,170 @@ public class ProductCategory {
     private JPanel totalPane;
     private JFormattedTextField totalSalesformattedTextField;
     private JPanel salesPanel;
-    private JPanel stockStatusPanel;
     private JTable stockStatusTable;
-    private JButton refreshButton;
     private JTextField thresholdtextField;
+    private JButton deleteButton;
+    private JTextField costPriceTextField;
+    private JFormattedTextField marginformattedTextField;
+    private JList categoryList;
+    private JButton deleteCategoryButton;
+    private JPanel supplierPanel;
+    private JTextField supplierNameTextField;
+    private JTextField addressTextField;
+    private JFormattedTextField phone1FormattedTextField;
+    private JFormattedTextField phone2FormattedTextField;
+    private JFormattedTextField emailFormattedTextField;
+    private JTextField bankTextField;
+    private JTextField accountNumberTextField;
+    private JPanel buttonPanel;
+    private JButton addSupplierButton;
+    private JButton cancelButton1;
+    private JTextField invoiceTextField;
+    private JTable additemsTable;
+    private JButton submitInvoiceButton;
+    private JButton cancelRegistrationButton;
+    private JButton addItemButton;
+    private JPanel addSupplierPanel;
+    private JTable suppliersTable;
+    private JComboBox supplierComboBox2;
+    private JFormattedTextField amountOwedFormattedTextField;
+    private JFormattedTextField paymentAmountFormattedTextField;
+    private JButton payButton;
+    private JButton cancelPaymentButton;
+    private JTable itemsSuppliedTable;
+    private JPanel itemsSuppliedPanel;
+    private JScrollPane deliveriesTableScrollPane;
+    private JTextField paymentDescriptionTextField;
+    private JPanel rightPanel;
+    private JComboBox productsSalesComboBox;
+    private JButton deleteSalesButton;
+    private JButton clearTableSelectionButton;
+    private JTextField filterTextField;
+    private JPanel productsDisplayPanel;
+    private JPanel leftxPanel;
+    private JPanel rightxPanel;
+    private JPanel filterPanel;
+    private JPanel rightStockPanel;
+    private JButton deleteStockAddButton;
+    private JTextField filterStockTextField;
+    private JTextField filterDeliveriesTextField;
+    private JPanel topRightPanel;
+    private JPanel leftCustomerPanel;
+    private JTextField firstNameTextField;
+    private JTextField lastNameTextField;
+    private JTextField birthdayTextField;
+    private JTextField emailTextField;
+    private JTextField phone1TextField;
+    private JTextField phone2TextField;
+    private JTextField addressLocationTextField;
+    private JComboBox sexComboBox;
+    private JButton addCustomerButton;
+    private JButton cancelButton4;
+    private JTextField filterCustomerTextField;
+    private JTable customersTable;
+    private JTextField transactionsFilterTextField;
+    private JComboBox customerComboBox;
+    private JTable customerStatementTable;
+    private JPanel rightCustomerPanel;
+    private JPanel transactionsPanel;
+    private JPanel transactionsDetailPanel;
+    private JTable transactionsDetailTable;
+    private JPanel leftStockPanel;
+    private JTable distributionTable;
+    private JTextField distributionTextField;
+    private JButton printStatementButton;
+    private JPanel addCustomerPanel;
+    private JPanel supplierTransactionsPanel;
+    private JTable supplierTransactionsTable;
+    private JTextField supplyTransactionsFiltertextField;
+    private JTextField statementFilterTextField;
+    private JTable invoiceTable;
+    private JButton receiveGoodsButton;
+    private JButton adjustStockButton;
+    private JButton paymentsButton;
+    private JButton deleteCustomerButton;
+    private JButton deleteItemButton;
+    private JButton deleteTransactionButton;
+    private JButton deleteSupplierButton;
+    private JTextField supplierFilterTextField;
+    private JButton unpackButton;
+    private JPanel register_panel;
+    private JTextField userNameTextField;
+    private JCheckBox adminCheckBox;
+    private JButton registerButton;
+    private JPasswordField passwordField;
+    private JTextField user_lastNameTextField;
+    private JTextField user_firstNameTextField;
+    private JTextField userFilterTextField;
+    private JTable usersTable;
+    private JButton viewRefundsButton;
+    private JTable refundsTable;
+    private JButton addUnitsButton;
+    private JPasswordField confirmpasswordField;
+    private JLabel errorLabel;
+    private JButton changePasswordButton;
+    private JPanel userAccountsPanel;
+    private JPanel rightTopPanel;
+    private JPanel leftTopStockPanel;
+    private JPanel stockFilterPanel;
+    private JPanel stockTransactionsPanel;
+    private JPanel leftBottomStockPanel;
+    private JPanel leftSupplierPanel;
+    private JPanel supplierListPanel;
+    private JScrollPane suppliersScrollPane;
+    private JPanel settingsPanel;
+    private JPanel leftSettingsPanel;
+    private JTable settingsTable;
+    private JButton refreshButton;
+    private JPanel locationPanel;
+    private JTextField locationTextField;
+    private JButton addLoctionButton;
+    private JPanel locationsListPanel;
+    private JList locationsList;
+    private JButton removeLocationButton;
+    private JPanel fromDatePanel;
+    private JPanel toDatePanel;
+    private JButton searchStockTransactions;
+    private JButton editCustomerButton;
+    private JScrollPane productsScrollPane;
     private JDialog parent;
     private static MySqlAccess mAcess;
-    private  AutoCompleteSupport support;
+    //TODO: fix concurrency workaround
+   // private  MySqlAccess mAcess2; //tentaive solution to concurrency issue on populating comboboxes with getproducts()
+    //private static  AutoCompleteSupport support;
+    private int productId;
+    private int categoryId;
+    ProductDialog productsDialog;
+    private final EventList products;
+    private static EventList itemsEventList;
+    private int rowNumber = 0;
+    private Transaction transaction;
+    private int stockTransactionId;
+    private JTable productsTable2;
+    private static EventList<Product> eventListProducts;
+    private static EventList<Supplier> eventListSuppliers;
+    private static EventList<Customer> eventListCustomers;
+    private static EventList<StockItem> stockItemsEventList;
+    private SettingsParser settingsParser;
+    private String serverIp ="";
+
+    private boolean tab1Loaded = false;
+    private boolean tab2Loaded = false;
+    private boolean tab3Loaded = false;
+    private boolean tab4Loaded = false;
+    private boolean tab5Loaded = false;
+    private boolean tab6Loaded = false;
+
+
+
     private String[] productsTableColumnNames = {
             "ProductId",
             "Product Name",
             "Additional Info.",
             "Category",
-            "Price",
+            "Cost price",
+            "Sell Price",
+            "Mark up",
             "Units",
             "Threshold",
             "Barcode",
@@ -111,11 +282,20 @@ public class ProductCategory {
     private String[] stockTableColumnNames = {
         "Product Id",
         "Product Name",
-        "Quantity",
+        "Quantity Added",
         "Date Added",
         "Date Modified",
+            "Transaction Id",
         "Comment"
     };
+
+    private String[] itemsTableColumnNames = {"No.",
+            "Product",
+            "Quantity",
+            "Units",
+            "Price",
+            "Total Price",
+            "product id"};
 
 
     //Sales Report variables
@@ -124,6 +304,11 @@ public class ProductCategory {
     private static JFXPanel chartFxPanel;
     private static DatePicker startDatePicker;
     private static DatePicker stopDatePicker;
+    private static JFXPanel fromdatePickerFXPanel;
+    private static JFXPanel  toDatePickerFXPanel;
+    private static DatePicker fromDatePicker;
+    private static DatePicker toDatePicker;
+
     private final JTable salesTable;
 
     private String[] salesTableColumnNames = {
@@ -131,32 +316,68 @@ public class ProductCategory {
             "Quantity",
             "Price",
             "Total",
-            "ReceiptNo",
-            "Date"
+            "Margin",
+            "Invoice no.",
+            "status",
+            "Sold by",
+            "Date",
+            "Item Id"
     };
 
     private String[] salesSummaryTableColumnNames = {
             "Product Name",
             "Quantity",
-            "Total"
+            "Total",
+            "Margin"
     };
 
     private String[] stockStatusTableColumnNames = {
+            "Product no.",
             "Product Name",
-            "Quantity",
+            "Quantity Available",
             "Threshold",
             "Last Changed Date"
+    };
+
+
+
+    private String[] deliveryTableColumnNames = {
+            "Delivery Id",
+            //"Transaction Id",
+            "Supplier",
+            "Product",
+            "Quantity",
+            "Price",
+            "Total Price",
+            "Invoice",
+            "Time"
     };
 
     private static CategoryAxis xAxis;
     private static NumberAxis yAxis;
     private static BarChart<String,Number> bc;
 
-
-
-    public ProductCategory() {
-        mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME);
+    public ProductCategory(String title) {
+        super(title);
+        settingsParser = new SettingsParser("settings.xml");
+        serverIp=settingsParser.getServerIp();
+        mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME, serverIp);
         parent = new JDialog(); // for validation error messages
+
+
+        deleteTransactionButton.setVisible(false);
+        deleteItemButton.setVisible(false);
+
+       leftxPanel.setBackground(new Color(214,217,223));
+       addProductPanel.setBackground(new Color(214,217,223));
+
+       unpackButton.setVisible(false);//getting rid of unpack functionality, can be done with distribute and adjust
+       unpackButton.setEnabled(false);//getting rid of unpack functionality, can be done with distribute and adjust
+
+        java.net.URL imgURL = getClass().getResource("/images/ic_trending_up_red_48dp.png");
+        Image logoImage = Toolkit.getDefaultToolkit().getImage(imgURL);
+        setIconImage(logoImage);
+
 
         salesTable = new JTable();
         salesTable.setFillsViewportHeight(true);
@@ -164,29 +385,31 @@ public class ProductCategory {
         salesTable.setShowGrid(true);
         salesTable.setGridColor(new Color(189, 221, 255));
 
-        //Highlight products that are low in stock
-        stockStatusTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
-            @Override
-            public Component getTableCellRendererComponent(JTable table,
-                                                           Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+        //stockTable.getSelectionModel().addListSelectionListener(new StockTableRowListener());
+        stockTable.setRowSelectionAllowed(true);
 
-                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+        customerStatementTable.getSelectionModel().addListSelectionListener(new CustomerStatementTableRowListener());
+        customerStatementTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        suppliersTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        distributionTable.setRowSelectionAllowed(true);
+        distributionTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-                int quantityStocked = (int)table.getModel().getValueAt(row, 1);
-                int stockThreshold = (int)table.getModel().getValueAt(row, 2);
 
-                if (quantityStocked<=stockThreshold) {
-                    setBackground(Color.orange);
-                    setForeground(Color.BLACK);
-                }
-                else {
-                    setBackground(table.getBackground());
-                    setForeground(table.getForeground());
-                }
-                return this;
-            }
-        });
+        itemsEventList = new BasicEventList();
+        products = new BasicEventList();
+        try {
+            products.addAll(mAcess.getAllProducts());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
+
+
+        productsDialog = new ProductDialog(null, "Products", products,serverIp);
+        productsDialog.setSize(new Dimension(700,500));
+
+        categoryList.addListSelectionListener(new ListSelectionHandler());
+        categoryList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         datePickerFXPanel = new JFXPanel();
         datePickerFXPanel.setPreferredSize(new Dimension(20,20));
@@ -194,51 +417,257 @@ public class ProductCategory {
         stopDatePickerFXPanel = new JFXPanel();
         stopDatePickerFXPanel.setPreferredSize(new Dimension(20,20));
 
+        fromdatePickerFXPanel = new JFXPanel();
+        fromdatePickerFXPanel.setPreferredSize(new Dimension(20,20));
+
+        toDatePickerFXPanel = new JFXPanel();
+        toDatePickerFXPanel.setPreferredSize(new Dimension(20,20));
+
         startDatePanel.add(datePickerFXPanel);
         stopDatePanel.add(stopDatePickerFXPanel);
 
-        populateStockTable();
-        populateProductslist();
+        fromDatePanel.add(fromdatePickerFXPanel);
+        toDatePanel.add(toDatePickerFXPanel);
 
+        errorLabel.setVisible(false);
+        errorLabel.setText("");
+
+        thresholdtextField.setText("1");
+
+        distributionTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
+            @Override
+            public Component getTableCellRendererComponent(JTable table,
+                                                           Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+
+
+                TableModel model = distributionTable.getModel();
+//                double receivedQuantity =(double)model.getValueAt(row,2);
+//                double storeQuantity =(double)model.getValueAt(row,3);
+//                double shopQuantity =(double)model.getValueAt(row,4);
+                double lowThreshold =(double)model.getValueAt(row,3);
+
+                //double totalQuantity = receivedQuantity + storeQuantity + shopQuantity;
+                double totalQuantity = (double)model.getValueAt(row,2);;
+
+                if (totalQuantity<=lowThreshold) {
+                    setBackground(Color.ORANGE);
+                    setForeground(Color.black);
+                }else if(row % 2 == 0) {
+                    setBackground(Color.white);
+                    setForeground(Color.black);
+                }else {
+                    setBackground(new Color(242,242,242));
+                    setForeground(table.getForeground());
+                }
+                return this;
+            }
+        });
+
+        //TODO: refactor this code with a single populateTable() function
+//        populateSupplierTable2();
+//        populateProductslist();
         populateProductsTable();
-       // populateCategoriesTable();
-       populateStockStatusTable();
+//        populateDistributionTable();
+//        populateStatementTable(); //customer transactions
+//        populateCustomersTable();
+//        populateSupplyTransactionsTable();
+//        populateUsersTable();
+//        populateRefundsTable();
+//        populateSettingsTable();
+        //populateStockTable2();
 
-        populateProductsComboBox();
+//        stockTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+//        stockTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+
+          populateCategoriesListBox();
+
+//        locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+
+        supplierTransactionsTable.getSelectionModel().addListSelectionListener(new SupplierTransactionTableRowListener());
+
+        //https://stackoverflow.com/questions/14852719/double-click-listener-on-jtable-in-java
+        distributionTable.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent mouseEvent) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(stockPanel);
+                JTable table =(JTable) mouseEvent.getSource();
+                Point point = mouseEvent.getPoint();
+                int row = table.rowAtPoint(point);
+                if (mouseEvent.getClickCount() == 2 && table.getSelectedRow() != -1) {
+                    TableModel model = table.getModel();
+                    int productId = (int)model.getValueAt(row,0);
+                    String productName = (String)model.getValueAt(row,1);
+                    Distributor distributor = new Distributor(productId,serverIp);
+                    distributor.setProductName(productName);
+
+                    DistributeDialog distributionDialog = new DistributeDialog(topFrame, "Distribution" + " - "
+                            + distributor.getProductName(),
+                            distributor,stockItemsEventList,serverIp);
+                    distributionDialog.setVisible(true);
+
+                    populateDistributionTable();
+                    //populateStockTable2();
+                }
+            }
+        });
+
+//        createItemSuppliedTableModelListener();
+
+        customersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    TableModel tableModel = customersTable.getModel();
+                    int customerId = (int) tableModel.getValueAt(row, 0);
+                    Customer customer = new Customer();
+                    customer.setId(customerId);
+                    customer.setFirstname((String)tableModel.getValueAt(row, 1));
+                    customer.setLastname((String)tableModel.getValueAt(row, 2));
+                    customer.setSex((String)tableModel.getValueAt(row, 3));
+                    customer.setBirthday((String)tableModel.getValueAt(row, 4));
+                    customer.setEmail((String)tableModel.getValueAt(row, 5));
+                    customer.setPhone1((String)tableModel.getValueAt(row, 6));
+                    customer.setPhone2((String)tableModel.getValueAt(row, 7));
+                    customer.setAddress((String)tableModel.getValueAt(row, 8));
+                    mAcess.updateCustomer(customer);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
+
+        usersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    TableModel tableModel = usersTable.getModel();
+                    String username = (String) tableModel.getValueAt(row, 0);
+                    User user = new User();
+                    user.setUserName(username);
+                    user.setFirstName((String)tableModel.getValueAt(row, 1));
+                    user.setLastName((String)tableModel.getValueAt(row, 2));
+                    user.setAdmin((boolean)tableModel.getValueAt(row, 3));
+                    mAcess.updateUser(user);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
+
+        settingsTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    SettingsTableModel tableModel = (SettingsTableModel)settingsTable.getModel();
+                    String nodeName = (String) tableModel.getValueAt(row, 0);
+                    String textContent = (String) tableModel.getValueAt(row, 1);
+
+                    switch (nodeName){
+                        case "Business name":
+                            settingsParser.setBusinessName(textContent);
+                            break;
+                        case "Address":
+                            settingsParser.setLocation(textContent);
+                            break;
+                        case "Phone 1":
+                            settingsParser.setPhone1(textContent);
+                            break;
+                        case "Phone 2":
+                            settingsParser.setPhone2(textContent);
+                            break;
+                        case "TIN":
+                            settingsParser.setTin(textContent);
+                            break;
+                        case "Server Ip":
+                            settingsParser.setServerIp(textContent);
+                            break;
+                    }
+
+                    if(nodeName == "server_ip") {
+                        settingsParser.updateSettings("server", "server_ip", textContent);
+                    }else{
+                        settingsParser.updateSettings("header", nodeName, textContent);
+                    }
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
+
+        suppliersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+                try {
+                    TableModel tableModel = suppliersTable.getModel();
+                    int supplierId = (int) tableModel.getValueAt(row, 0);
+                    Supplier supplier = new Supplier();
+                    supplier.setId(supplierId);
+                    supplier.setSupplierName((String)tableModel.getValueAt(row, 1));
+                    supplier.setAccountNumber((String)tableModel.getValueAt(row, 7));
+                    supplier.setBankName((String)tableModel.getValueAt(row, 6));
+                    supplier.setEmail((String)tableModel.getValueAt(row, 4));
+                    supplier.setPhone1((String)tableModel.getValueAt(row, 2));
+                    supplier.setPhone2((String)tableModel.getValueAt(row, 3));
+                    supplier.setAddress((String)tableModel.getValueAt(row, 5));
+                    mAcess.updateSupplier(supplier);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+
+        eventListProducts = GlazedLists.eventList(getProducts2());
+        eventListSuppliers = GlazedLists.eventList(getSuppliers());
+        eventListCustomers = GlazedLists.eventList(getCustomers());
+
+       Thread thread = new Thread(new Runnable() {
+           @Override
+           public void run() {
+               try {
+                   populateComboBox2(productsSalesComboBox,eventListProducts,new ProductsTextFilterator());
+                   populateComboBox2(customerComboBox,eventListCustomers,new CustomerTextFilterator());
+               } catch (InvocationTargetException e) {
+                   e.printStackTrace();
+               }
+           }
+       });
+       thread.start();
+
+
 
         //input validation
-        categoryNametextField.setInputVerifier(new NotEmptyValidator(parent,categoryNametextField,"Enter category!"));
-        productNametextField.setInputVerifier(new NotEmptyValidator(parent,productNametextField,"Enter product name!"));
-        //descriptionTextField.setInputVerifier(new NotEmptyValidator(parent,descriptionTextField,"Enter text!"));
-        priceTextField.setInputVerifier(new NotEmptyNumberValidator(parent,priceTextField, "Invalid price!"));
-        unitsComboBox.setInputVerifier(new ComboNotSelectedValidator(parent,unitsComboBox, "Select a unit!"));
-        productsComboBox.setInputVerifier(new ComboNotSelectedValidator(parent,productsComboBox, "Select a product"));
-        quantityTextField.setInputVerifier(new NotEmptyNumberValidator(parent,quantityTextField,"Enter quantity"));
+        categoryNametextField.setInputVerifier(new NotEmptyValidator(parent,categoryNametextField,"Enter category. (Press ESC to clear this message)" ));
+        productNametextField.setInputVerifier(new NotEmptyValidator(parent,productNametextField,"Enter product name. (Press ESC to clear this message)"));
+        priceTextField.setInputVerifier(new NotEmptyNumberValidator(parent,priceTextField, "Invalid price. (Press ESC to clear this message)"));
+        costPriceTextField.setInputVerifier(new NotEmptyNumberValidator(parent,costPriceTextField, "Invalid price (Press ESC to clear this message)"));
+        unitsComboBox.setInputVerifier(new ComboNotSelectedValidator(parent,unitsComboBox, "Select a unit. (Press ESC to clear this message)"));
 
         //refresh products and categories tables
         RefreshAction refreshAction = new RefreshAction("Refresh", new Integer(KeyEvent.VK_R));
-        //refreshProductsButton.setAction(refreshAction);
-        //refreshCategoriesButton.setAction(refreshAction);
-        refreshStockButton.setAction(refreshAction);
 
-        //reset form fields when cancel button is clicked
+//        //reset form fields when cancel button is clicked
           CancelAction cancelAction = new CancelAction("Cancel", new Integer(KeyEvent.VK_C));
          cancelButton.setAction(cancelAction);            //cancel button in category panel
          cancelProductAddButton.setAction(cancelAction); //cancel button in product panel
-          cancelStockButton.setAction(cancelAction);      //cancel button in stockpanel
-
-
 
         populateCategoriesComboBox();
 
-
-        ArrayList<Unit> units = null;
-        try {
-            units = mAcess.getAllUnits();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        ArrayList<Unit> units = mAcess.getAllUnits();
         ComboBoxModel cbUnitsModel = new DefaultComboBoxModel(units.toArray());
         unitsComboBox.setModel(cbUnitsModel);
         unitsComboBox.setSelectedIndex(-1);
@@ -247,14 +676,23 @@ public class ProductCategory {
         submitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String categoryName = categoryNametextField.getText().trim();
-                String description = descriptiontextArea.getText().trim();
-                Category category = new Category(categoryName);
-                category.setDescription(description);
+
                 try {
-                    mAcess.createProductCategory(category);
+                    String categoryName = categoryNametextField.getText().trim();
+                    String description = descriptiontextArea.getText().trim();
+                    Category category = new Category(categoryName);
+                    category.setDescription(description);
+                    if(submitButton.getText() =="Add") {
+                        mAcess.createProductCategory(category);
+                    }else{
+                        category.setCategoryId(categoryId);
+                        mAcess.updateCategory(category);
+                        submitButton.setText("Add");
+                        submitButton.setBackground(new Color(214,217,223));
+                    }
                     resetFormFields(categoryPanel);
                     populateCategoriesComboBox();
+                    populateCategoriesListBox();
                 } catch (Exception e1) {
                     e1.printStackTrace();
                 }
@@ -266,87 +704,92 @@ public class ProductCategory {
         submitProductAddButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                Category category;
-                if (categoryComboBox.getSelectedIndex() == -1) {
-                    category = new Category("");
-                }else {
-                    category = (Category) categoryComboBox.getSelectedItem();
-                }
+                int n = JOptionPane.showConfirmDialog(null,
+                        "Do you want to continue with this action?",
+                        "Confirmation", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    Category category;
+                    if (categoryComboBox.getSelectedIndex() == -1) {
+                        category = new Category("");
+                    } else {
+                        category = (Category) categoryComboBox.getSelectedItem();
+                    }
 
-                try {
+                    try {
 
-                    Product product = new Product();
-                    product.setProductName(productNametextField.getText().trim());
-                    product.setCategory(category);
-                    product.setDescription(descriptionTextField.getText().trim());
-                    product.setPrice(Double.parseDouble(priceTextField.getText().trim()));
-                    product.setUnits(((Unit)unitsComboBox.getSelectedItem()).getUnitName());
-                    product.setComment(commentTextArea.getText().trim());
-                    product.setBarcode(barcodeTextField.getText().trim());
-                    product.setStockLowThreshold(Integer.parseInt(thresholdtextField.getText().trim()));
-                    mAcess.insertProduct(product);
-                    resetFormFields(addProductPanel);
-                    refreshProductsTable();
+                        Product product = new Product();
+                        product.setProductName(productNametextField.getText().trim());
+                        product.setCategory(category);
+                        product.setDescription(descriptionTextField.getText().trim());
+                        double costPrice = Double.parseDouble(costPriceTextField.getText().trim());
+                        double sellingPrice = Double.parseDouble(priceTextField.getText().trim());
+                        if(costPrice>sellingPrice){
+                            JOptionPane.showMessageDialog(null,
+                                    "Cost price is greater than selling price","Invalid price", JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                        product.setCostprice(costPrice);
+                        product.setPrice(sellingPrice);
+                        product.setUnits(((Unit) unitsComboBox.getSelectedItem()).getUnitName());
+                        product.setComment(commentTextArea.getText().trim());
+                        product.setBarcode(barcodeTextField.getText().trim());
+                        product.setStockLowThreshold(Double.parseDouble(thresholdtextField.getText().trim()));
+                        if (submitProductAddButton.getText() == "Add") {
+                            mAcess.insertProduct(product);
+                        } else {
+                            product.setProductId(productId);
+                            mAcess.updateProduct(product);
+                        }
+                        resetFormFields(addProductPanel);
+                        thresholdtextField.setText("1");
+                        refreshProductsTable();
+                        populateDistributionTable(); // refresh dist table
+                        submitProductAddButton.setText("Add");
+                        eventListProducts.clear();
+                        eventListProducts.addAll(getProducts2());
+                        products.clear();
+                        products.addAll(mAcess.getAllProducts());
 
-                } catch (NumberFormatException ex){
-                    System.out.println("Invalid price!");
-                }catch (NullPointerException ex){
-                    System.out.println("Units not selected!");
-                }catch(PSQLException ex) {
-                    System.out.println("Product name already exists");
-                }catch (Exception e1) {
-                    e1.printStackTrace();
+                    } catch (NumberFormatException ex) {
+                        System.out.println("Invalid price!");
+                    } catch (NullPointerException ex) {
+                        System.out.println("Units not selected!");
+                    } catch (PSQLException ex) {
+                        System.out.println("Product name already exists");
+                        ex.printStackTrace();
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    } finally {
+
+                    }
                 }
             }
         });
 
 
-        submitStockButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
-                try {
-                    int productId= ((Product) productsComboBox.getSelectedItem()).getProductId();
-                    int quantity = Integer.parseInt(quantityTextField.getText().trim());
-                    String comment = stockCommentsTextArea.getText().trim();
-                    mAcess.addStock(1,productId, quantity,comment);
-                    resetFormFields(stockPanel);
-                } catch (NullPointerException e1) {
-                    System.out.println("Product not selected!");
-                }  catch (NumberFormatException ex) {
-                    System.out.println("Invalid number!");
-                }catch (Exception e1) {
-                    e1.printStackTrace();
-                }
-            }
-        });
 
 
         tabbedPane.addChangeListener(new ChangeListener() {
 
             @Override
             public void stateChanged(ChangeEvent e) {
-                if(tabbedPane.getSelectedIndex() == 1){
+                if(tabbedPane.getSelectedIndex() == 0){
                     ((NotEmptyValidator)productNametextField.getInputVerifier()).setPopUpVisible(false);
                    // ((NotEmptyValidator)descriptionTextField.getInputVerifier()).setPopUpVisible(false);
                     ((NotEmptyNumberValidator)priceTextField.getInputVerifier()).setPopUpVisible(false);
                     ((ComboNotSelectedValidator)unitsComboBox.getInputVerifier()).setPopUpVisible(false);
                     ((NotEmptyValidator)categoryNametextField.getInputVerifier()).setPopUpVisible(false);
 
-                }else if(tabbedPane.getSelectedIndex() == 0){
-                    ((ComboNotSelectedValidator)productsComboBox.getInputVerifier()).setPopUpVisible(false);
-                    ((NotEmptyNumberValidator)quantityTextField.getInputVerifier()).setPopUpVisible(false);
                 }
+//                else if(tabbedPane.getSelectedIndex() == 1){
+//                    ((ComboNotSelectedValidator)productsComboBox.getInputVerifier()).setPopUpVisible(false);
+//                    ((NotEmptyNumberValidator)quantityTextField.getInputVerifier()).setPopUpVisible(false);
+//                }
             }
         });
 
         //**********************stock status report event handlers***********************
-        refreshButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                populateStockStatusTable();
-            }
-        });
+
 
         //*****************Sales Report event handlers***********************************
         searchButton.addActionListener(new ActionListener() {
@@ -356,41 +799,53 @@ public class ProductCategory {
                 try {
                     if(detailedRadioButton.isSelected()==true) {
                         //show detailed view
-                        ArrayList<Item> items = mAcess.getItemsSold(startDatePicker.getValue().toString(),
-                                stopDatePicker.getValue().toString());
+                        populateDetailedSalesTable();
 
-                        Object[][] items2D = new Object[items.size()][];
-                        int i = 0;
-                        Double totalSales = 0.0;
-                        for (Item item : items) {
-                            items2D[i] = item.toArray();
-                            totalSales += item.getTotalPrice();
-                            i++;
-                        }
-                        totalSalesformattedTextField.setValue(totalSales);
-
-                        salesTable.setModel(new ItemsTableModel(items2D, salesTableColumnNames));
                         JScrollPane scrollPane = new JScrollPane(salesTable);
                         salesPanel.removeAll();
                         salesPanel.add(scrollPane);
 
-                        //TODO: find a solution for the display quirk; tentatively solved below. Perhaps run on a separate thread: platform.runlater()
+                        //TODO: find a solution for the display quirk wherein it does not show anything;
+                        // tentatively solved below. Perhaps run on a separate thread: platform.runlater()
+                        //it may be caused by setting widths after table is populated; shift width setting to populateDetailedSalesTahle();
                         salesPanel.setVisible(false);
                         salesPanel.setVisible(true);
 
+                        salesTable.getColumnModel().getColumn(0).setPreferredWidth(200); // productname
+                        salesTable.getColumnModel().getColumn(1).setPreferredWidth(50);  // quantity
+                        salesTable.getColumnModel().getColumn(2).setPreferredWidth(50);
+                        salesTable.getColumnModel().getColumn(3).setPreferredWidth(50);
+                        salesTable.getColumnModel().getColumn(4).setPreferredWidth(50);
+                        salesTable.getColumnModel().getColumn(5).setPreferredWidth(50);
+
                     }else if(summaryRadioButton.isSelected()){
                         //show summary view
-                        ArrayList<Item> items = mAcess.getItemsSoldSummary(startDatePicker.getValue().toString(),
-                                stopDatePicker.getValue().toString());
+                        if(productsSalesComboBox.getSelectedIndex() == -1){
+                            productsSalesComboBox.setSelectedIndex(0);
+                        }
+                        Product product = (Product)productsSalesComboBox.getSelectedItem();
+                        ArrayList<Item> items = null;
+                        if(product.getProductName() !=null){
+                            items = mAcess.getItemsSoldSummary(startDatePicker.getValue().toString(),
+                                    stopDatePicker.getValue().toString(),product.getProductId() );
+                        }else {
+                            items = mAcess.getItemsSoldSummary(startDatePicker.getValue().toString(),
+                                    stopDatePicker.getValue().toString());
+                        }
+
+
                         Object[][] items2D = new Object[items.size()][];
                         int i = 0;
                         Double totalSales = 0.0;
+                        Double totalMargin = 0.0;
                         for (Item item : items) {
                             items2D[i] = item.toArray_summary();
                             totalSales += item.getTotalPrice();
+                            totalMargin += item.getMargin();
                             i++;
                         }
                         totalSalesformattedTextField.setValue(totalSales);
+                        marginformattedTextField.setValue(totalMargin);
                         salesTable.setModel(new ItemsTableModel(items2D, salesSummaryTableColumnNames));
                         JScrollPane scrollPane = new JScrollPane(salesTable);
                         salesPanel.removeAll();
@@ -431,7 +886,6 @@ public class ProductCategory {
                             }
                         });
                     }
-
                 } catch (SQLException e1) {
                     e1.printStackTrace();
                 } catch (ClassNotFoundException e1) {
@@ -441,26 +895,1020 @@ public class ProductCategory {
             }
         });
 
+        deleteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                                "All sales and stock information associated to this product will be deleted.\n" +
+                                        "You must delete sales information for this product before performing this action.\n" +
+                                        " Do you want to continue?",
+                        "Dangerous Action", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    try {
+
+                        //TODO: need to improve this, simply use the CASCADE option in foreign key consraints
+                        //remove all the product's entries from the stock status table
+                       // mAcess.deleteStockStatus(productId);
+
+                        //remove all the stock details for the product
+                        mAcess.deleteStock(productId);
+
+                        //remove all the transactions for the product
+                        //mAcess.deleteAllTransactions(productId);
+
+                        //delete the product
+                        mAcess.deleteProduct(productId);
+
+                        refreshProductsTable();
+                        resetFormFields(addProductPanel);
+
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }finally {
+                        submitProductAddButton.setText("Add");
+                        //submitProductAddButton.setBackground(new Color(214,217,223));
+                    }
+                }
+            }
+        });
+
+        deleteCategoryButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                                "This Action can not be reversed. You must delete products\n under this category" +
+                                        " before performing this action. Do you want to continue?",
+                        "Warning", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    try {
+
+                        mAcess.deleteCategory(categoryId);
+                        populateCategoriesListBox();
+                        resetFormFields(categoryPanel);
+
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }finally {
+                        submitButton.setText("Add");
+                        submitButton.setBackground(new Color(214,217,223));
+                    }
+                }
+            }
+        });
+        addSupplierButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                try {
+                    Supplier supplier = new Supplier();
+                    supplier.setSupplierName(supplierNameTextField.getText());
+                    supplier.setPhone1(phone1FormattedTextField.getText());
+                    supplier.setPhone2(phone2FormattedTextField.getText());
+                    supplier.setEmail(emailFormattedTextField.getText());
+                    supplier.setAddress(addressTextField.getText());
+                    supplier.setBankName(bankTextField.getText());
+                    supplier.setAccountNumber(accountNumberTextField.getText());
+                    mAcess.addSupplier(supplier);
+                    resetFormFields(addSupplierPanel);
+                    populateSupplierTable2();
+                    eventListSuppliers.clear();
+                    eventListSuppliers.addAll(getSuppliers());
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+        cancelButton1.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                resetFormFields(addSupplierPanel);
+            }
+        });
+
+
+         deleteSalesButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                int n = JOptionPane.showConfirmDialog(null,
+                        "This Action can not be reversed. Do you want to continue?",
+                        "Warning", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    int[] selectedRows = salesTable.getSelectedRows();
+                    int [] itemIds = new int [selectedRows.length];
+                    for(int i=0; i<selectedRows.length; i++){
+                        itemIds[i] = (int) salesTable.getModel().getValueAt(i,9);
+                    }
+
+                    try {
+                        mAcess.deleteSales(itemIds);
+                        populateDetailedSalesTable();
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }finally {
+//                        ((ItemsTableModel) salesTable.getModel()).clearTable();
+//                        try {
+//                            populateDetailedSalesTable();
+//                        } catch (SQLException e1) {
+//                            e1.printStackTrace();
+//                        } catch (ClassNotFoundException e1) {
+//                            e1.printStackTrace();
+//                        }
+                    }
+                }
+
+            }
+        });
+        clearTableSelectionButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                productsTable.clearSelection();
+            }
+        });
+
+
+
+
+        printStatementButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Customer customer = (Customer) customerComboBox.getSelectedItem();
+                int customerId = customer.getId();
+                ArrayList<CustomerTransaction> customerTransactions = getCustomerTransactions(customerId);
+                for(CustomerTransaction customerTransaction : customerTransactions){
+                    try {
+                        customerTransaction.addAllItems(mAcess.getInvoiceItems(customerTransaction.getReceiptId()));
+                    } catch (SQLException e1) {
+                        e1.printStackTrace();
+                    } catch (ClassNotFoundException e1) {
+                        e1.printStackTrace();
+                    }
+                }
+
+                ReceiptHeader receiptHeader = new ReceiptHeader();
+                receiptHeader.setBusinessName("KSL Traders");
+                receiptHeader.setLocation("Kitoro, Entebbe");
+                receiptHeader.setTelephoneNumber1("0705-352522 | 0772-825180");
+                receiptHeader.setTin("1002192122");
+
+                PrinterJob job = PrinterJob.getPrinterJob();
+                PageFormat pf = job.defaultPage();
+                Paper paper = new Paper();
+                double margin = 3.6; // 1 tenth of an inch
+                paper.setImageableArea(margin, margin, paper.getWidth() - margin * 2, paper.getHeight()
+                        - margin * 2);
+                pf.setPaper(paper);
+
+                job.setPrintable(new StatementPrinter(customerTransactions, receiptHeader),pf);
+
+                boolean ok = job.printDialog();
+                if (true) {
+                    try {
+                        //throw(new PrinterException("Printer not connected!"));
+                        job.print();
+
+                    } catch (PrinterException ex) {
+          /* The job did not successfully complete */
+                        System.out.println(ex);
+                    }
+                }
+
+            }
+        });
+        addCustomerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    Customer customer = new Customer();
+                    customer.setFirstname(firstNameTextField.getText());
+                    customer.setLastname(lastNameTextField.getText());
+                    customer.setSex((String)sexComboBox.getSelectedItem());
+                    //customer.setBarcode(barcodeTextField.getText());
+                    customer.setBirthday(birthdayTextField.getText());
+                    customer.setEmail(emailTextField.getText());
+                    customer.setAddress(addressLocationTextField.getText());
+                    customer.setPhone2(phone2TextField.getText());
+                    customer.setPhone1(phone1TextField.getText());
+                    mAcess.addCustomer(customer);
+                    resetFormFields(addCustomerPanel);
+                    eventListCustomers.clear();
+                    eventListCustomers.addAll(getCustomers());
+
+                    populateCustomersTable();
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+        cancelButton4.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                resetFormFields(addCustomerPanel);
+            }
+        });
+
+        receiveGoodsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+
+                AddItemsDialog addItemsDialog = new AddItemsDialog(eventListSuppliers, products,serverIp);
+                addItemsDialog.setMinimumSize(new Dimension(700, 450));
+                addItemsDialog.setVisible(true);
+
+
+
+
+
+                //TODO: this update is slowing down the system. Improve it
+                //TODO: tables should not be updated if additemsDialog is cancelled.
+                int initalRowCount = supplierTransactionsTable.getRowCount();
+                populateSupplyTransactionsTable();
+                int finalRowCount = supplierTransactionsTable.getRowCount();
+
+                if(initalRowCount!=finalRowCount) {//new row added, populate other tables
+                    //TODO: improve this logic. consider a table event listener or table.getModel().addTableModelListener https://stackoverflow.com/questions/15546651/listener-for-addition-deletion-of-row-in-jtable
+                    //TODO or simply add an return value like a boolean to the additemsdialog to notify whether item addition was successful or not
+                    populateDeliveryTable();
+                    populateDistributionTable(); //refresh distribution UI table when item is received
+                    populateStockTable2(getSockItems());
+                }
+            }
+        });
+        adjustStockButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                StockAdjustmentDialog stockAdjustmentDialog = new StockAdjustmentDialog("ibalihikya",
+                        eventListProducts,stockItemsEventList,serverIp);
+                stockAdjustmentDialog.setVisible(true);
+                populateDistributionTable();
+                populateRefundsTable();
+            }
+        });
+        paymentsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(supplierPanel);
+                SupplierPaymentDialog supplierPaymentDialog = new SupplierPaymentDialog(topFrame,eventListSuppliers,serverIp);
+                supplierPaymentDialog.setMinimumSize(new Dimension(400, 250));
+                supplierPaymentDialog.setVisible(true);
+                populateSupplyTransactionsTable();
+
+            }
+        });
+        deleteCustomerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                        "This will delete the customer and all associated invoices and receipts.\n Do you want to continue with this action?",
+                        "Warning", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    try {
+                        int row = customersTable.getSelectedRow();
+                        int customerId = (int) customersTable.getModel().getValueAt(row, 0);
+                        mAcess.deleteCustomer(customerId);
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }
+                }
+                populateCustomersTable();
+            }
+        });
+        deleteItemButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                        "Do you want to continue with this action?",
+                        "Confirmation", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    int row_supplyTable = itemsSuppliedTable.getSelectedRow();
+                    int deliveryId = (int) itemsSuppliedTable.getModel().getValueAt(row_supplyTable, 0);
+                    mAcess.deleteSuppliedItem(deliveryId);
+
+                    int row_transactionTable = supplierTransactionsTable.getSelectedRow();
+                    int transactionId = (int) supplierTransactionsTable.getModel().getValueAt(row_transactionTable, 0);
+                    populateDeliveryTable(transactionId);
+
+                    populateSupplyTransactionsTable();
+                    populateDistributionTable();
+                    populateStockTable2(getSockItems());
+                }
+            }
+        });
+        deleteTransactionButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                        "Do you want to continue with this action?",
+                        "Confirmation", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    int row_transactionTable = supplierTransactionsTable.getSelectedRow();
+                    int transactionId = (int) supplierTransactionsTable.getModel().getValueAt(row_transactionTable, 0);
+                    mAcess.deleteSupplierTransaction(transactionId);
+                    populateSupplyTransactionsTable();
+                    populateDeliveryTable(transactionId);
+                    populateDistributionTable();
+                    ArrayList stockItems = getSockItems();
+                    populateStockTable2(stockItems);
+                }
+
+            }
+        });
+        deleteSupplierButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int n = JOptionPane.showConfirmDialog(null,
+                        "This will delete the supplier, associated invoices and payments.\n Do you want to continue with this action?",
+                        "Warning", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+                    int row = suppliersTable.getSelectedRow();
+                    int supplierId = (int) suppliersTable.getModel().getValueAt(row, 0);
+                    mAcess.deleteSupplier(supplierId);
+                    populateSupplierTable2();
+                    populateDistributionTable();
+                    populateStockTable2(getSockItems());
+                }
+
+            }
+        });
+        unpackButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                SplitterDialog splitterDialog = new SplitterDialog(serverIp);
+                splitterDialog.setMinimumSize(new Dimension(500, 300));
+                splitterDialog.setVisible(true);
+                populateStockTable2(getSockItems());
+                populateDistributionTable();
+            }
+        });
+        registerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    char [] password = passwordField.getPassword();
+                    char [] confirmpassword = confirmpasswordField.getPassword();
+
+                    if(Arrays.equals(password,confirmpassword)) {
+                        byte[] salt = SaltedMD5.getSalt();
+                        String securePassword = SaltedMD5.getSecurePassword(new String(password), salt);
+
+                        User user = new User();
+                        user.setUserName(userNameTextField.getText().trim());
+                        user.setFirstName(user_firstNameTextField.getText().trim());
+                        user.setLastName(user_lastNameTextField.getText().trim());
+
+                        user.setPassword(securePassword);
+                        user.setSalt(salt);
+                        user.setAdmin(adminCheckBox.isSelected());
+
+                        mAcess.registerUser(user);
+                        resetFormFields(register_panel);
+                        errorLabel.setVisible(false);
+                        populateUsersTable();
+                    }else
+                    {
+                        errorLabel.setVisible(true);
+                        errorLabel.setForeground(Color.RED);
+                        errorLabel.setText("Passwords do not match!");
+                    }
+                } catch (NoSuchAlgorithmException e1) {
+                    e1.printStackTrace();
+                } catch (NoSuchProviderException e1) {
+                    e1.printStackTrace();
+                } catch (Exception ex){
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        addUnitsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(productPanel);
+                AddUnitsDialog addUnitsDialog = new AddUnitsDialog(topFrame,serverIp);
+                addUnitsDialog.setVisible(true);
+
+                ArrayList<Unit> units = mAcess.getAllUnits();
+                ComboBoxModel cbUnitsModel = new DefaultComboBoxModel(units.toArray());
+                unitsComboBox.setModel(cbUnitsModel);
+            }
+        });
+        cancelRegistrationButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                resetFormFields(register_panel);
+            }
+        });
+        changePasswordButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(userAccountsPanel);
+                int row = usersTable.getSelectedRow();
+                String username = (String)usersTable.getModel().getValueAt(row, 0);
+                ChangePasswordDialog changePasswordDialog = new ChangePasswordDialog(username,topFrame,serverIp);
+                changePasswordDialog.setVisible(true);
+
+            }
+        });
+        refreshButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                populateStatementTable();
+            }
+        });
+        addLoctionButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    mAcess.addLocation(new Site(locationTextField.getText()));
+                    locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+                    resetFormFields(locationPanel);
+
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+
+        removeLocationButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                int n = JOptionPane.showConfirmDialog(null,
+                        "All stock information associated to this location will be deleted.\n" +
+                                "You must delete stock information for this location before performing this action.\n" +
+                                " Do you want to continue?",
+                        "Dangerous Action", JOptionPane.YES_NO_OPTION);
+                if (n == JOptionPane.YES_OPTION) {
+
+                    try {
+                        Site location = (Site) locationsList.getSelectedValue();
+                        mAcess.deleteLocation(location);
+                        locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }
+                }
+            }
+        });
+
+
+        tabbedPane.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+
+                int index = tabbedPane.getSelectedIndex();
+
+                switch (index){
+//                    case 0:
+//                        populateProductsTable();
+//                        populateCategoriesListBox();
+//                        break;
+                    case 1:
+                        if(tab1Loaded==false){
+                            populateSupplierTable2();
+                            populateSupplyTransactionsTable();
+                            tab1Loaded=true;
+                        }
+                        break;
+                    case 2:
+                        if(tab2Loaded==false){
+                            populateDistributionTable();
+                            populateRefundsTable();
+                            populateStockTable2(getSockItems());
+                            stockTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+                            stockTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+                            locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+                            tab2Loaded=true;
+                        }
+                        break;
+                    case 3:
+                        if(tab3Loaded==false){
+                            populateCustomersTable();
+                            populateStatementTable(); //customer transactions
+                            tab3Loaded=true;
+                        }
+                        break;
+                    case 4:
+                        if(tab4Loaded==false){
+                            populateProductslist();
+                            tab4Loaded=true;
+                        }
+                        break;
+                    case 5:
+                        if(tab5Loaded==false){
+                            populateUsersTable();
+                            tab5Loaded=true;
+                        }
+                        break;
+                    case 6:
+                        if(tab6Loaded==false){
+                            populateSettingsTable();
+                            tab6Loaded=true;
+                        }
+                        break;
+                }
+
+
+            }
+        });
+        searchStockTransactions.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    ArrayList<StockItem> stockItems =
+                            mAcess.getStock(fromDatePicker.getValue().toString(),toDatePicker.getValue().toString());
+                    populateStockTable2(stockItems);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
     }
 
-    private void populateProductsComboBox() {
-        ArrayList<Product> allProducts = getProducts();
-        ComboBoxModel cbModel = new DefaultComboBoxModel(allProducts.toArray());
-        productsComboBox.setModel(cbModel);
-//        EventList<Product> products = GlazedLists.eventList(allProducts);
+    private ArrayList getSockItems() {
+        ArrayList stockItems = new ArrayList();
+        try {
+            stockItems = mAcess.getStock();
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+        return stockItems;
+    }
+
+//    private void createSupplierTransactionsTableModelListener(){
+//        supplierTransactionsTable.getModel().addTableModelListener(new TableModelListener() {
+//            @Override
+//            public void tableChanged(TableModelEvent e) {
+//                //Refresh these tables if there have been new items supplied
+//                //populateSupplyTransactionsTable();
+////                populateDeliveryTable();
+////                populateDistributionTable(); //refresh distribution UI table when item is received
+////                populateStockTable2(getSockItems());
 //
-//        try {
-//            SwingUtilities.invokeAndWait(new Runnable() {
-//                @Override
-//                public void run() {
-//                    support = AutoCompleteSupport.install(productsComboBox,products, new ProductsTextFilterator());
+//                if (e.getType()==TableModelEvent.INSERT||e.getType()==TableModelEvent.DELETE) {
+//                    System.out.println("row added");
 //                }
-//            });
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        } catch (InvocationTargetException e) {
-//            e.printStackTrace();
-//        }
+//            }
+//        });
+//    }
+
+    private void createItemSuppliedTableModelListener() {
+        itemsSuppliedTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                //TODO: consider all table columns editable (if necessary)
+
+                    double quantity = (double) itemsSuppliedTable.getValueAt(row, 3);
+                    double price = (double) itemsSuppliedTable.getValueAt(row, 4);
+                    int invoice_no = (int) itemsSuppliedTable.getValueAt(row, 6);
+                    double total = quantity * price;
+                    itemsSuppliedTable.setValueAt(total, row, 5);
+                    int deliveryId = (int) itemsSuppliedTable.getValueAt(row, 0);
+
+                    Item item = new Item();
+                    item.setQuantity(quantity);
+                    item.setPrice(price);
+                    item.setInvoiceNumber(invoice_no);
+                    mAcess.updateDelivery(deliveryId, item);
+                    populateSupplyTransactionsTable();
+
+                populateDistributionTable();
+                populateStockTable2(getSockItems());
+            }
+        });
+    }
+
+    private ArrayList<CustomerTransaction> getCustomerTransactions(int customerId) {
+        ArrayList<CustomerTransaction> customerTransactions = new ArrayList<>();
+        try {
+            customerTransactions = mAcess.getCustomerTransactions(customerId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return customerTransactions;
+    }
+
+    public static ArrayList<Customer> getCustomers() {
+        ArrayList<Customer> customers = new ArrayList<>();
+        try {
+            customers = mAcess.getCustomers();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return customers;
+    }
+
+    private void populateDeliveryTable() {
+        ArrayList<Item> deliveries = getDeliveries();
+        TextFilterator deliveriesFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Item item = (Item)o;
+                baselist.add(item.getSellername());
+                baselist.add(item.getProductName());
+                baselist.add(item.getInvoiceNumber());
+                baselist.add(item.getTime());
+                baselist.add(item.getPrice());
+                baselist.add(item.getTotalPrice());
+            }
+        };
+
+        String [] deliveriesPropertyNames = {"transactionId","sellername","productName", "quantity", "price", "totalPrice",
+                "invoiceNumber", "time"};
+        //boolean [] editable = {false,false, false, true, true, true, true, false};
+        boolean [] editable = {false,false, false, false, false, false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Item.class, deliveriesPropertyNames, deliveryTableColumnNames,
+        editable);
+        populateFilterableTable(itemsSuppliedTable,deliveries,
+                                deliveriesFilterator,filterDeliveriesTextField,tableFormat);
+    }
+
+    //provides the transaction details when a row in the master (supplier) transactions table is clicked
+    private void populateDeliveryTable(int transactionId) {
+        ArrayList<Item> deliveries = getDeliveries(transactionId);
+        TextFilterator deliveriesFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Item item = (Item)o;
+                baselist.add(item.getSellername());
+                baselist.add(item.getProductName());
+                baselist.add(item.getInvoiceNumber());
+                baselist.add(item.getTime());
+                baselist.add(item.getPrice());
+                baselist.add(item.getTotalPrice());
+            }
+        };
+
+        String [] deliveriesPropertyNames = {"transactionId","sellername","productName", "quantity", "price", "totalPrice",
+                "invoiceNumber", "time"};
+
+        //boolean [] editable = {false,false, false, true, true, true, true, false};
+        boolean [] editable = {false,false, false, false, false, false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Item.class, deliveriesPropertyNames, deliveryTableColumnNames,
+                editable);
+        populateFilterableTable(itemsSuppliedTable,deliveries,
+                deliveriesFilterator,filterDeliveriesTextField,tableFormat);
+    }
+
+    private void populateDistributionTable() {
+        ArrayList<Distributor> distributors = getDistributors();
+        TextFilterator distributionFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Distributor distributor = (Distributor) o;
+                baselist.add(distributor.getProductName());
+                baselist.add(distributor.getTotalQuantityInStock());
+                baselist.add(distributor.getDate_time_created());
+                baselist.add(distributor.getStockLowThreshold());
+                baselist.add(distributor.getDate_time_modified());
+            }
+        };
+
+        String [] distributionPropertyNames = {"productId","productName","totalQuantityInStock", "stockLowThreshold", "date_time_modified"};
+
+        String [] columnNames = {"Product no.", "Product", "Total Qty",
+                "Low Threshold", "Date Modified"};
+
+        boolean [] editable = {false,false, false, false, false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Distributor.class, distributionPropertyNames, columnNames,
+                editable);
+        populateFilterableTable(distributionTable,distributors,
+                distributionFilterator,distributionTextField,tableFormat);
+    }
+
+    private void populateSupplierTable2() {
+        ArrayList<Supplier> suppliers = getSuppliers();
+        TextFilterator supplierFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Supplier supplier = (Supplier) o;
+                baselist.add(supplier.getId());
+                baselist.add(supplier.getSupplierName());
+                baselist.add(supplier.getAccountNumber());
+                baselist.add(supplier.getBankName());
+                baselist.add(supplier.getAddress());
+                baselist.add(supplier.getDateCreated());
+                baselist.add(supplier.getEmail());
+                baselist.add(supplier.getPhone1());
+                baselist.add(supplier.getPhone2());
+            }
+        };
+
+        String[] supplierTableColumnNames = {
+                "Id","Supplier Name","Phone1","Phone2","Email","Address","Bank","Account No.","Date Added"
+        };
+
+        String [] supplierPropertyNames = {"id","supplierName","phone1", "phone2",
+                "email","address","bankName","accountNumber","dateCreated"};
+
+        boolean [] editable = {false,true, true, true, true, true, true,true,false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Supplier.class, supplierPropertyNames, supplierTableColumnNames,
+                editable);
+        populateFilterableTable(suppliersTable,suppliers,
+                supplierFilterator,supplierFilterTextField,tableFormat);
+    }
+
+    private void populateUsersTable() {
+        ArrayList<User> users = mAcess.getUsers();
+        TextFilterator userFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                User user = (User) o;
+                baselist.add(user.getUserName());
+                baselist.add(user.getFirstName());
+                baselist.add(user.getLastName());
+                baselist.add(user.getDate_created());
+            }
+        };
+
+        String[] userTableColumnNames = {
+                "username","First Name","Last Name","Admin","Date created"};
+
+        String [] userPropertyNames = {"userName","firstName","lastName","admin", "date_created"};
+
+        boolean [] editable = {false,true, true, true, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(User.class, userPropertyNames, userTableColumnNames,
+                editable);
+        populateFilterableTable(usersTable,users,
+                userFilterator,userFilterTextField,tableFormat);
+    }
+
+    private void populateRefundsTable() {
+        ArrayList<Refund> refunds = mAcess.getRefunds();
+        TextFilterator refundFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Refund refund = (Refund) o;
+                baselist.add(refund.getId());
+                baselist.add(refund.getAmount());
+                baselist.add(refund.getComment());
+                baselist.add(refund.getDatePaid());
+            }
+        };
+
+        String[] refundsTableColumnNames = {
+                "No.","Amount","Comment","Date"};
+
+        String [] refundsPropertyNames = {"id","amount","comment","datePaid"};
+
+        boolean [] editable = {false,false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Refund.class, refundsPropertyNames, refundsTableColumnNames,
+                editable);
+//        populateFilterableTable(refundsTable,refunds,
+//                refundFilterator,refund,tableFormat);
+
+        EventList eventList = new BasicEventList();
+        eventList.addAll(refunds);
+        refundsTable.setModel(new DefaultEventTableModel(eventList,tableFormat));
+    }
+
+    private void populateSettingsTable() {
+
+
+        String[] columnNames = {"Setting", "Value"};
+
+        String [][] settings = {{"Business name", settingsParser.getBusinessName()},
+                {"Address", settingsParser.getLocation()},
+                {"Phone 1", settingsParser.getPhone1()},
+                {"Phone 2", settingsParser.getPhone2()},
+                {"TIN", settingsParser.getTin()},
+                {"Server Ip", settingsParser.getServerIp()}};
+        SettingsTableModel settingsTableModel = new SettingsTableModel(settings, columnNames);
+
+        settingsTable.setModel(settingsTableModel);
+    }
+
+    private void populateCustomersTable() {
+        ArrayList<Customer> customers = getCustomers();
+        TextFilterator customersFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                Customer customer = (Customer) o;
+                baselist.add(customer.getFirstname());
+                baselist.add(customer.getLastname());
+                baselist.add(customer.getSex());
+                baselist.add(customer.getBirthday());
+                baselist.add(customer.getPhone1());
+                baselist.add(customer.getPhone2());
+                baselist.add(customer.getAddress());
+                baselist.add(customer.getEmail());
+                baselist.add(customer.getDateCreated());
+                baselist.add(customer.getDateModified());
+
+            }
+        };
+
+        String [] customerPropertyNames = {"id","firstname","lastname", "sex",
+                "birthday", "email",  "phone1", "phone2", "address", "dateCreated"};
+
+        String [] columnNames = {"id.", "First name", "Last name", "Sex", "Birthday", "email", "Phone1", "Phone2", "Address",
+                "Date"};
+
+        boolean [] editable = {false, true,true, true, true, true, true, true, true, true};
+
+        JComboBox sexComboBox = new JComboBox();
+        sexComboBox.addItem("");
+        sexComboBox.addItem("male");
+        sexComboBox.addItem("female");
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Customer.class, customerPropertyNames, columnNames,editable);
+        populateFilterableTable(customersTable,customers,
+                customersFilterator,filterCustomerTextField,tableFormat);
+
+        TableColumn sexColumn = customersTable.getColumnModel().getColumn(3);
+        sexColumn.setCellEditor(new DefaultCellEditor(sexComboBox));
+        customersTable.setRowHeight(25);
+    }
+
+
+
+    //populates the customer statement table
+    private void populateStatementTable() {
+        ArrayList<CustomerStatement> customerStatements = getCustomerStatements();
+        TextFilterator statementsFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                CustomerStatement customerStatement = (CustomerStatement)o;
+                baselist.add(customerStatement.getId());
+                baselist.add(customerStatement.getAmount());
+                baselist.add(customerStatement.getBalance());
+                baselist.add(customerStatement.getType());
+                baselist.add(customerStatement.getDate_entered());
+                baselist.add(customerStatement.getDate_modified());
+                baselist.add(customerStatement.getFirstname());
+                baselist.add(customerStatement.getLastname());
+            }
+        };
+
+        String [] statementColumLabels = {"No.", "First name", "Last name", "Type", "Amount" , "Balance", "Date" };
+        String [] statementPropertyNames = {"id","firstname","lastname", "type", "amount", "balance", "date_entered"};
+        boolean [] editable = {false,false, false, false, false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(CustomerStatement.class, statementPropertyNames, statementColumLabels,
+                editable);
+        populateFilterableTable(customerStatementTable,customerStatements,
+                statementsFilterator,statementFilterTextField,tableFormat);
+    }
+
+
+    private void populateInvoiceTable() {
+        int row = customerStatementTable.getSelectedRow();
+        int statement_id = (int) customerStatementTable.getModel().getValueAt(row, 0);
+        int invoice_id = getInvoiceId(statement_id);
+
+        ArrayList<Item> items = getInvoiceItems(invoice_id);
+
+        String [] itemColumLabels = {"Product", "Quantity", "Units", "Price", "Total"};
+        String [] itemPropertyNames = {"productName","quantity","units","price", "totalPrice"};
+        boolean [] editable = {false,false, false, false, false};
+
+        itemsEventList.clear();
+        itemsEventList.addAll(items);
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Item.class, itemPropertyNames,
+                itemColumLabels, editable);
+        invoiceTable.setModel(new EventTableModel(itemsEventList,tableFormat));
+    }
+
+    private ArrayList<Item> getInvoiceItems(int invoiceId) {
+        ArrayList<Item> items = new ArrayList<>();
+        try {
+            items = mAcess.getInvoiceItems(invoiceId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    private int getInvoiceId(int statement_id) {
+        int invoice_id = 0;
+        try {
+            invoice_id = mAcess.getInvoiceId(statement_id);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return invoice_id;
+    }
+
+    private void populateSupplyTransactionsTable() {
+        ArrayList<SupplierTransaction> supplierTransactions = getSupplierTransactions();
+        TextFilterator suppliertransactionsFilterator = new TextFilterator() {
+            @Override
+            public void getFilterStrings(List baselist, Object o) {
+                SupplierTransaction supplierTransaction = (SupplierTransaction) o;
+                baselist.add(supplierTransaction.getDescription());
+                baselist.add(supplierTransaction.getTransaction_type());
+                baselist.add(supplierTransaction.getAmount());
+                baselist.add(supplierTransaction.getBalance());
+                baselist.add(supplierTransaction.getSupplierName());
+                baselist.add(supplierTransaction.getDate_created());
+            }
+        };
+
+        String [] transactionsColumLabels = {"Transaction Id", "Supplier", "Description", "Transaction Type", "Amount" , "Balanace", "Date" };
+        String [] transactionsPropertyNames = {"id","supplierName","description", "transaction_type", "amount", "balance",
+                 "date_created"};
+        boolean [] editable = {false,false, false, false, false, false, false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(SupplierTransaction.class, transactionsPropertyNames, transactionsColumLabels,
+                editable);
+        populateFilterableTable(supplierTransactionsTable,supplierTransactions,
+                suppliertransactionsFilterator,supplyTransactionsFiltertextField,tableFormat);
+    }
+
+    private void populateDetailedSalesTable() throws SQLException, ClassNotFoundException {
+        if(productsSalesComboBox.getSelectedIndex() == -1){
+            productsSalesComboBox.setSelectedIndex(0);
+        }
+        Product product = (Product)productsSalesComboBox.getSelectedItem();
+        ArrayList<Item> items = null;
+        if(product.getProductName() !=null){
+            items = mAcess.getItemsSold(startDatePicker.getValue().toString(),
+                    stopDatePicker.getValue().toString(),product.getProductId() );
+        }else {
+            items = mAcess.getItemsSold(startDatePicker.getValue().toString(),
+                    stopDatePicker.getValue().toString());
+        }
+        Object[][] items2D = new Object[items.size()][];
+        int i = 0;
+        Double totalSales = 0.0;
+        Double totalmargin = 0.0;
+        for (Item item : items) {
+            items2D[i] = item.toArray();
+            totalSales += item.getTotalPrice();
+            totalmargin += item.getMargin();
+            i++;
+        }
+
+        salesTable.setModel(new ItemsTableModel(items2D, salesTableColumnNames));
+        TableColumnModel columnModel = salesTable.getColumnModel();
+        columnModel.removeColumn(columnModel.getColumn(9)); // hide the transactionid
+
+        totalSalesformattedTextField.setValue(totalSales);
+        marginformattedTextField.setValue(totalmargin);
+    }
+
+
+    private static void populateComboBox(JComboBox comboBox, ArrayList arrayList) throws InvocationTargetException {
+        ComboBoxModel cbModel = new DefaultComboBoxModel(arrayList.toArray());
+        comboBox.setModel(cbModel);
+        //comboBox.setSelectedIndex(-1);
+        //EventList<Product> products = GlazedLists.eventList(getProducts());
+        EventList<Product> products = GlazedLists.eventList(arrayList);
+        try {
+            SwingUtilities.invokeAndWait(new Runnable() {
+                @Override
+                public void run() {
+                    AutoCompleteSupport support = AutoCompleteSupport.install(comboBox,products, new ProductsTextFilterator());
+                    support.setFilterMode(TextMatcherEditor.CONTAINS);
+                }
+            });
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public  void populateComboBox2(JComboBox comboBox, EventList eventList, TextFilterator textFilterator) throws InvocationTargetException {
+        //eventList = GlazedLists.eventList(arrayList);
+        try {
+            SwingUtilities.invokeAndWait(new Runnable() {
+                @Override
+                public void run() {
+                    AutoCompleteSupport support = AutoCompleteSupport.install(comboBox,eventList, textFilterator);
+                    support.setFilterMode(TextMatcherEditor.CONTAINS);
+                }
+            });
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void tableChanged(TableModelEvent e) {
+        int row = e.getFirstRow();
+        int column = e.getColumn();
+        if(column != -1 && column !=5) {
+            ItemsTableModel model = (ItemsTableModel) e.getSource();
+            double quantity = (double) model.getValueAt(row, 2);
+            double price = (double) model.getValueAt(row, 4);
+            double total = quantity * price;
+            model.setValueAt(total, row, 5);
+        }
     }
 
     public static final class ProductsTextFilterator implements TextFilterator<Product> {
@@ -470,6 +1918,14 @@ public class ProductCategory {
             baseList.add(productName);
         }
     }
+
+    public static final class SupplierTextFilterator implements TextFilterator<Supplier> {
+        @Override
+        public void getFilterStrings(List<String> baseList, Supplier supplier) {
+            baseList.add(supplier.getSupplierName());
+        }
+    }
+
 
     private void populateCategoriesComboBox() {
         ArrayList<Category> categories = null;
@@ -483,26 +1939,228 @@ public class ProductCategory {
         categoryComboBox.setSelectedIndex(-1);
     }
 
-    private void populateProductsTable() {
-        ArrayList<Product> products = getProducts();
-        Object [][] products2D = new Object[products.size()][];
-        int i=0;
-        for(Product product : products){
-            products2D[i] = (product.toArray());
-            i++;
+    private void populateCategoriesListBox() {
+        ArrayList<Category> categories = null;
+        try {
+            categories = mAcess.getProductCategories();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        productsTable.setModel(new ItemsTableModel(products2D, productsTableColumnNames));
+        ComboBoxModel cbModel = new DefaultComboBoxModel(categories.toArray());
+        categoryList.setModel(cbModel);
+        categoryList.setSelectedIndex(-1);
     }
 
-    private void populateStockTable(){
-        ArrayList<StockItem> stockItems = getStock();
-        Object[][] stock2D = new Object[stockItems.size()][];
-        int i = 0;
-        for(StockItem stockItem : stockItems){
-            stock2D[i] = stockItem.toArray();
+//    private void populateTable(JTable table, ArrayList<Object>data ){
+//        Object [][] obj2D = new Object[data.size()][];
+//        int i=0;
+//        for(Object object : data){
+//            obj2D[i] = (object.toArray());
+//            i++;
+//        }
+//        productsTable.setModel(new ItemsTableModel(products2D, productsTableColumnNames));
+//
+//    }
+
+    private void populateProductsTable() {
+
+        EventList products2 = new BasicEventList();
+
+        try {
+            products2.addAll(mAcess.getAllProducts());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        TextFilterator productFilterator = new TextFilterator() {
+            public void getFilterStrings(List baseList, Object element) {
+                Product product = (Product) element;
+                baseList.add(product.getProductName());
+                baseList.add(product.getPrice());
+                baseList.add(product.getUnits());
+                baseList.add(product.getCategory());
+                baseList.add(product.getBarcode());
+            }
+        };
+
+        TextComponentMatcherEditor matcherEditor = new TextComponentMatcherEditor(filterTextField, productFilterator);
+        FilterList filteredProducts = new FilterList(products2, new ThreadedMatcherEditor(matcherEditor));
+
+        //TODO: Add category field
+        String[] propertyNames = new String[] {"productId","productName", "description", "costprice", "price", "markup",
+                "units", "stockLowThreshold", "barcode", "dateCreated",  "lastModifiedDate",  "comment"};
+        String[] columnLabels = new String[] {"Product no.","Product", "Description", "Cost Price",  "Sell Price",
+                "Mark up",  "Units", "Threshold","Barcode", "Date Added",  "Last Modified", "Comment" };
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Product.class, propertyNames, columnLabels);
+        productsTable2 = new JTable(new EventTableModel(filteredProducts, tableFormat));
+        //productsTable2.setFillsViewportHeight(true);
+        productsTable2.getSelectionModel().addListSelectionListener(new ProductsTableRowListener());
+        productsTable2.setRowSelectionAllowed(true);
+        productsTable2.getColumnModel().getColumn(1).setPreferredWidth(200);
+        productsTable2.getColumnModel().getColumn(2).setPreferredWidth(50); //comments
+        productsTable2.getColumnModel().getColumn(3).setPreferredWidth(50);
+        productsTable2.getColumnModel().getColumn(4).setPreferredWidth(50);
+        productsTable2.getColumnModel().getColumn(5).setPreferredWidth(50);
+        productsTable2.getColumnModel().getColumn(0).setPreferredWidth(30); // productid
+        productsTable2.getColumnModel().getColumn(6).setPreferredWidth(20); // units
+        productsTable2.getColumnModel().getColumn(7).setPreferredWidth(20); // threshold
+        productsTable2.getColumnModel().getColumn(8).setPreferredWidth(20); // barcode
+        productsTable2.getColumnModel().getColumn(11).setPreferredWidth(20); // comments
+
+
+        JScrollPane scrollPane = new JScrollPane(productsTable2);
+        //productPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
+        productsDisplayPanel.removeAll();
+        productsDisplayPanel.add(scrollPane);
+
+        productsDisplayPanel.setVisible(false);
+        productsDisplayPanel.setVisible(true);
+
+    }
+
+    private void populateStockTable2(ArrayList<StockItem>stockItems) {
+        stockItemsEventList = new BasicEventList();
+
+        try {
+            //stockItemsEventList.addAll(mAcess.getStock());
+            stockItemsEventList.addAll(stockItems);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        TextFilterator stockFilterator = new TextFilterator() {
+            public void getFilterStrings(List baseList, Object element) {
+                StockItem stockItem = (StockItem) element;
+                baseList.add(stockItem.getTransactionId());
+                baseList.add(stockItem.getProductName());
+                baseList.add(stockItem.getQuantity());
+                baseList.add(stockItem.getDirection());
+                baseList.add(stockItem.getComment());
+                baseList.add(stockItem.getLocation());
+                baseList.add(stockItem.getBalance());
+                baseList.add(stockItem.getSource_dest());
+                baseList.add(stockItem.getDateCreated());
+            }
+        };
+
+        TextComponentMatcherEditor stockMatcherEditor = new TextComponentMatcherEditor(filterStockTextField, stockFilterator);
+        FilterList filteredStockItems = new FilterList(stockItemsEventList, new ThreadedMatcherEditor(stockMatcherEditor));
+
+        String[] stockItemPropertyNames = new String[] {"transactionId","productName", "location", "quantity", "direction",
+                "balance", "source_dest", "dateCreated", "comment"};
+        String[] stockTablecolumnLabels = new String[] {"id.","Product", "location", "Quantity","Direction", "Balance",
+                "Source/Dest", "Date", "Comment"};
+
+        TableFormat stockTableFormat = GlazedLists.tableFormat(StockItem.class, stockItemPropertyNames, stockTablecolumnLabels);
+        stockTable.setModel(new EventTableModel(filteredStockItems,stockTableFormat));
+    }
+
+
+    private void populateFilterableTable(JTable table,ArrayList arrayList, TextFilterator textFilterator,
+                                         JTextField textField, TableFormat tableFormat) {
+        EventList eventList = new BasicEventList();
+        eventList.addAll(arrayList);
+
+        TextComponentMatcherEditor matcherEditor = new TextComponentMatcherEditor(textField, textFilterator);
+        FilterList filterList = new FilterList(eventList, new ThreadedMatcherEditor(matcherEditor));
+
+        table.setModel(new EventTableModel(filterList,tableFormat));
+    }
+
+    private void populateFilterableTable(JTable table,EventList eventList, TextFilterator textFilterator,
+                                         JTextField textField, TableFormat tableFormat) {
+        //EventList eventList = new BasicEventList();
+        //eventList.addAll(arrayList);
+
+        TextComponentMatcherEditor matcherEditor = new TextComponentMatcherEditor(textField, textFilterator);
+        FilterList filterList = new FilterList(eventList, new ThreadedMatcherEditor(matcherEditor));
+
+        table.setModel(new EventTableModel(filterList,tableFormat));
+    }
+
+
+    private void populateDeliveriesTable() {
+        ArrayList<Item> deliveries = getDeliveries();
+
+        Object [][] deliveries2D = new Object[deliveries.size()][];
+        int i=0;
+        for(Item item : deliveries){
+            deliveries2D[i] = (item.toArray_deliveries());
             i++;
         }
-        stockTable.setModel(new ItemsTableModel(stock2D,stockTableColumnNames));
+        itemsSuppliedTable.setModel(new ItemsTableModel(deliveries2D, deliveryTableColumnNames));
+    }
+
+    private ArrayList<Item> getDeliveries() {
+        ArrayList<Item> items = new ArrayList<>();
+        try {
+            items = mAcess.getSuppliedItems();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    private ArrayList<Item> getDeliveries(int transactionId) {
+        ArrayList<Item> items = new ArrayList<>();
+        try {
+            items = mAcess.getSuppliedItems(transactionId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    private ArrayList<Distributor> getDistributors() {
+        ArrayList<Distributor> distributors = new ArrayList<>();
+        try {
+            distributors = mAcess.getDistributors();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return distributors;
+    }
+
+    private ArrayList<CustomerStatement> getCustomerStatements() {
+        ArrayList<CustomerStatement> customerStatements = new ArrayList<>();
+        try {
+            customerStatements = mAcess.getCustomerStatements();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return customerStatements;
+    }
+
+    private ArrayList<SupplierTransaction> getSupplierTransactions() {
+        ArrayList<SupplierTransaction> supplierTransactions = new ArrayList<>();
+        try {
+            supplierTransactions = mAcess.getSupplierTransactions();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return supplierTransactions;
+    }
+
+    private ArrayList<Item> getItemsSoldOnCredit(int transactionId) {
+        ArrayList<Item> items = new ArrayList<>();
+        try {
+            items = mAcess.getItemsSoldOnCredit(transactionId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+
+    private ArrayList<Supplier> getSuppliers(){
+        ArrayList<Supplier> suppliers = new ArrayList<>();
+        try {
+            suppliers = mAcess.getSuppliers();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return suppliers;
     }
 
     private ArrayList<StockItem> getStock(){
@@ -515,15 +2173,36 @@ public class ProductCategory {
         return stockItems;
     }
 
-    private ArrayList<Product> getProducts() {
+    private static ArrayList<Product> getProducts() {
         ArrayList<Product> products = new ArrayList<>();
         try {
             products = mAcess.getAllProducts();
+            Product product = new Product();
+            products.add(0,product);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         return products;
     }
+
+    //TODO: Remove this clone
+    private  ArrayList<Product> getProducts2() {
+        ArrayList<Product> products = new ArrayList<>();
+        try {
+            MySqlAccess mAcess2 = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME,settingsParser.getServerIp());
+            products = mAcess2.getAllProducts();
+            Product product = new Product();
+            products.add(0,product);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return products;
+    }
+
+
+
 
    /* private void populateCategoriesTable(){
         ArrayList<Category> categories = new ArrayList<>();
@@ -556,6 +2235,7 @@ public class ProductCategory {
             {
                 JComboBox ctr = (JComboBox) control;
                 ctr.setSelectedIndex(-1);
+
             }
             else if (control instanceof JTextArea)
             {
@@ -595,27 +2275,30 @@ public class ProductCategory {
 //                    }
 //                });
 
-            }else if(button == refreshStockButton){
-                ((ItemsTableModel) stockTable.getModel()).clearTable();
-                populateStockTable();
-
-                //re-populate products combobox
-                ArrayList<Product> allProducts = getProducts();
-                ComboBoxModel cbModel = new DefaultComboBoxModel(allProducts.toArray());
-                productsComboBox.setModel(cbModel);
             }
+//            else if(button == refreshStockButton){
+//                ((ItemsTableModel) stockTable.getModel()).clearTable();
+//                populateStockTable();
+//
+//                //TODO: REFRESH PRODUCT COMBOBOX - fix auto complete suppport
+//                //re-populate products combobox
+//                //ArrayList<Product> allProducts = getProducts();
+//                //ComboBoxModel cbModel = new DefaultComboBoxModel(allProducts.toArray());
+//                //productsComboBox.setModel(cbModel);
+//                //ComboBoxModel cbModel = productsComboBox.getModel();
+//            }
         }
     }
 
     private void refreshProductsTable() {
-        ((ItemsTableModel) productsTable.getModel()).clearTable();
+        //((ItemsTableModel) productsTable2.getModel()).clearTable();
         populateProductsTable();
         //  support.uninstall();
 
         //re-populate products combobox
         ArrayList<Product> allProducts = getProducts();
         ComboBoxModel cbModel = new DefaultComboBoxModel(allProducts.toArray());
-        productsComboBox.setModel(cbModel);
+        //productsComboBox.setModel(cbModel); //affects autocomplete
     }
 
     public class CancelAction extends AbstractAction{
@@ -627,14 +2310,24 @@ public class ProductCategory {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            JButton button = (JButton)e.getSource();
-            if(button==cancelProductAddButton) {
-                resetFormFields(addProductPanel);
-            }else if (button == cancelButton){
-                resetFormFields(categoryPanel);
-            }else if (button==cancelStockButton){
-                resetFormFields(stockPanel);
-            }
+            cancelOperation(e);
+        }
+    }
+
+    private void cancelOperation(ActionEvent e) {
+        JButton button = (JButton)e.getSource();
+        if(button==cancelProductAddButton) {
+            resetFormFields(addProductPanel);
+            submitProductAddButton.setText("Add");
+            thresholdtextField.setText("1");
+            //submitProductAddButton.setBackground(new Color(214,217,223));
+        }else if (button == cancelButton){
+            resetFormFields(categoryPanel);
+            submitButton.setText("Add");
+            submitButton.setBackground(new Color(214,217,223));
+        }else if (button==cancelStockButton){
+            resetFormFields(stockPanel);
+            submitStockButton.setText("Add");
         }
     }
 
@@ -844,26 +2537,8 @@ public class ProductCategory {
         }
     }
 
-    private void populateStockStatusTable(){
-        ArrayList<StockItem> stockItems = getStockStatus();
-        Object[][] stock2D = new Object[stockItems.size()][];
-        int i = 0;
-        for(StockItem stockItem : stockItems){
-            stock2D[i] = stockItem.toArray2();
-            i++;
-        }
-        stockStatusTable.setModel(new ItemsTableModel(stock2D,stockStatusTableColumnNames));
-    }
 
-    private ArrayList<StockItem> getStockStatus(){
-        ArrayList<StockItem> stockItems = new ArrayList<>();
-        try {
-            stockItems = mAcess.getStockStatus();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return stockItems;
-    }
+
 
     ////////***********************
 
@@ -877,24 +2552,29 @@ public class ProductCategory {
         stopDatePicker = new DatePicker();
         stopDatePickerFXPanel.setScene(new Scene(stopDatePicker));
 
+        fromDatePicker = new DatePicker();
+        fromdatePickerFXPanel.setScene(new Scene(fromDatePicker));
 
+        toDatePicker = new DatePicker();
+        toDatePickerFXPanel.setScene(new Scene(toDatePicker));
     }
 
     public static void init(){
-//        datePickerFXPanel = new JFXPanel();
-//        datePickerFXPanel.setPreferredSize(new Dimension(20,20));
-//
-//        stopDatePickerFXPanel = new JFXPanel();
-//        stopDatePickerFXPanel.setPreferredSize(new Dimension(20,20));
+//        chartFxPanel = new JFXPanel();
 
-        chartFxPanel = new JFXPanel();
+        ProductCategory frame = new ProductCategory("Administration");
+        frame.setContentPane(frame.productCategoryPanel);
 
-        JFrame frame = new JFrame("Administration");
-        frame.setContentPane(new ProductCategory().productCategoryPanel);
+        //JFrame frame = new JFrame("Administration");
+        //frame.setContentPane(new ProductCategory().productCategoryPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //frame.setMinimumSize(new Dimension(700,400));
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.pack();
         frame.setVisible(true);
+        frame.setMinimumSize(new Dimension(700,400));
+
+        chartFxPanel = new JFXPanel();
 
         // create JavaFX scene
         Platform.runLater(new Runnable() {
@@ -906,6 +2586,7 @@ public class ProductCategory {
     }
 
     public static void main(String[] args) {
+        //UIManager.put("nimbusBlueGrey", new Color(242,242,242));
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -916,6 +2597,7 @@ public class ProductCategory {
         } catch (Exception e) {
             // If Nimbus is not available, you can set the GUI to another look and feel.
         }
+
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -923,14 +2605,177 @@ public class ProductCategory {
             }
         });
 
-        /*JFrame frame = new JFrame("Administration");
-        frame.setContentPane(new ProductCategory().productCategoryPanel);
+    }
 
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+    private class ProductsTableRowListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+            try {
 
-        frame.pack();
+                int row = productsTable2.getSelectedRow();
+                productId = (int) productsTable2.getModel().getValueAt(row, 0);
+                Product product = mAcess.getProduct(productId);
+                productNametextField.setText(product.getProductName());
+                descriptionTextField.setText(product.getDescription());
+                costPriceTextField.setText(Double.toString(product.getCostprice()));
+                priceTextField.setText(Double.toString(product.getPrice()));
+                thresholdtextField.setText(Double.toString(product.getStockLowThreshold()));
+                barcodeTextField.setText(product.getBarcode());
+                commentTextArea.setText(product.getComment());
 
-        frame.setVisible(true);*/
+                categoryComboBox.setSelectedItem(product.getCategory());
+                unitsComboBox.setSelectedItem(mAcess.getUnit(product.getUnits()));
+
+                submitProductAddButton.setText("Update");
+                //submitProductAddButton.setBackground(Color.ORANGE);
+
+            }catch (ArrayIndexOutOfBoundsException e1){
+                System.out.println("new product being entered, should not select it");
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }
+
+
+        }
+    }
+
+    private class StockTableRowListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+            try {
+
+                int row = stockTable.getSelectedRow();
+                productId = (int) stockTable.getModel().getValueAt(row, 0);
+                String comment = (String) stockTable.getModel().getValueAt(row, 6);
+                Product product = mAcess.getProduct(productId);
+                productsComboBox.setSelectedItem(product);
+                stockCommentsTextArea.setText(comment);
+
+                int quantity = (int) stockTable.getModel().getValueAt(row, 2);
+                quantityTextField.setText(Integer.toString(quantity));
+                stockTransactionId = (int) stockTable.getModel().getValueAt(row, 5);
+
+                submitStockButton.setText("Update");
+
+            }catch (ArrayIndexOutOfBoundsException e1){
+                System.out.println("new stock being entered, should not select it");
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }
+
+
+        }
+    }
+
+    private class CustomerStatementTableRowListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+            try {
+                int row = customerStatementTable.getSelectedRow();
+                //int transactionId = (int) customerStatementTable.getModel().getValueAt(row, 0);
+                //populateTransactionDetailTable(transactionId);
+                String type = (String) customerStatementTable.getModel().getValueAt(row, 3);
+                if(type.equals("Inv")) {
+                    populateInvoiceTable();
+                }else {
+                    itemsEventList.clear();
+                }
+            }catch (ArrayIndexOutOfBoundsException e1){
+                e1.printStackTrace();
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }
+
+
+        }
+    }
+
+    private class SupplierTransactionTableRowListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+
+            int row = supplierTransactionsTable.getSelectedRow();
+            try {
+                //TODO: -1 is used to prevent arrayout of bounds exception when createItemSuppliedTableModelListener() calls the populateSupplyTransactionsTable();
+                //TODO: the cleaner way to refresh the supplierTransactions table is to update the arraylist used to populate it.
+                if(row !=-1) {
+                    int transactionId = (int) supplierTransactionsTable.getModel().getValueAt(row, 0);
+                    populateDeliveryTable(transactionId);
+                    createItemSuppliedTableModelListener();
+                }
+            }catch (ArrayIndexOutOfBoundsException e1){
+                e1.printStackTrace();
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }finally {
+                System.out.println(row);
+            }
+
+
+        }
+    }
+
+
+
+
+
+    private class ListSelectionHandler implements ListSelectionListener{
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+            try {
+                JList categoriesList = (JList) e.getSource();
+                Category category = (Category) categoriesList.getSelectedValue();
+                categoryNametextField.setText(category.getCategoryName());
+                descriptiontextArea.setText(category.getDescription());
+                categoryId = category.getCategoryId();
+
+                submitButton.setText("Update");
+                submitButton.setBackground(Color.orange);
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }
+        }
+    }
+
+
+    public static class CustomerTextFilterator implements TextFilterator<Customer> {
+        @Override
+        public void getFilterStrings(List<String> baseList, Customer customer) {
+            baseList.add(customer.getFirstname());
+            baseList.add(customer.getLastname());
+        }
+
+    }
+
+    /**
+     * Resizes an image using a Graphics2D object backed by a BufferedImage.
+     * @param srcImg - source image to scale
+     * @param w - desired width
+     * @param h - desired height
+     * @return - the new resized image
+     */
+    private Image getScaledImage(Image srcImg, int w, int h, Color color){
+        BufferedImage resizedImg = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = resizedImg.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.drawImage(srcImg, 0, 0, w, h, color, null);
+        g2.dispose();
+        return resizedImg;
     }
 }

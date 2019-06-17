@@ -14,8 +14,8 @@ public class TestTransaction {
 
     @BeforeEach
     public void testSetup(){
-        cement = new Item(2,2,30000);
-        tiles = new Item(3,10,40000);
+        cement = new Item(2,2.0,30000);
+        tiles = new Item(3,10.0,40000);
         //TODO 8: remove hard coded userid
         transaction1 = new Transaction("ibalihikya");
     }

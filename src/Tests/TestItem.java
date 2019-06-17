@@ -12,7 +12,7 @@ public class TestItem {
 
     @BeforeEach
     public void testSetup(){
-        item = new Item(1,5,1000);
+        item = new Item(1,5.0,1000);
     }
 
     @Test

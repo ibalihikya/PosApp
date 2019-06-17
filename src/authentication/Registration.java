@@ -1,5 +1,6 @@
 package authentication;
 
+import Utilities.SettingsParser;
 import model.User;
 import model.databaseUtility.MySqlAccess;
 import model.databaseUtility.SqlStrings;
@@ -20,10 +21,12 @@ public class Registration {
     private JButton registerButton;
     private JPasswordField passwordField;
     private static MySqlAccess mAcess;
+    private SettingsParser settingsParser;
 
 
     public Registration() {
-        mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME);
+        settingsParser = new SettingsParser("settings.xml");
+        mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME,settingsParser.getServerIp());
 
         registerButton.addActionListener(new ActionListener() {
             @Override

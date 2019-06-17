@@ -97,8 +97,14 @@ public abstract class AbstractValidator extends InputVerifier implements KeyList
             popup.setLocation(point.x - (int) cDim.getWidth() / 2,
                     point.y + (int) cDim.getHeight() / 2);
             popup.pack();
-            popup.setVisible(true);
-            return false;
+
+//            long quittingTime = System.currentTimeMillis() + 3000;
+//            while (System.currentTimeMillis() < quittingTime) {
+//                popup.setVisible(true);
+//            }
+            //popup.setVisible(false);
+            //return false;
+            return true;
         }
 
         c.setBackground(Color.WHITE);

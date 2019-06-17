@@ -82,15 +82,10 @@ public class ItemsTableModel extends AbstractTableModel {
         }
     }
 
-    /*@Override
-    public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-        Vector rowVector = (Vector)data.elementAt(rowIndex);
-        rowVector.setElementAt(aValue, columnIndex);
-    }*/
 
     public boolean isCellEditable(int row, int col) {
 
-        if (col == 2) {
+        if (col == 2 || col == 4 ) {
             return true;
         } else {
             return false;
