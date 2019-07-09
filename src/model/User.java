@@ -84,6 +84,12 @@ public class User {
     }
 
     @Override
+    public String toString() {
+        return userName;
+    }
+
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User)) return false;
@@ -103,7 +109,7 @@ public class User {
         int result = userName.hashCode();
         result = 31 * result + firstName.hashCode();
         result = 31 * result + lastName.hashCode();
-        result = 31 * result + password.hashCode();
+//        result = 31 * result + password.hashCode();
         result = 31 * result + Arrays.hashCode(salt);
         result = 31 * result + (admin ? 1 : 0);
         return result;

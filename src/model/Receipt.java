@@ -14,9 +14,13 @@ public class Receipt {
     private String description;
     private String date_created;
     private String date_modified;
+    private int tillnumber;
+    private String cashierName;
 
     public Receipt() {
     }
+
+
 
     public Receipt(int invoice_id) {
         this.invoice_id = invoice_id;
@@ -38,6 +42,14 @@ public class Receipt {
         this.customerId = customerId;
     }
 
+    public int getTillnumber() {
+        return tillnumber;
+    }
+
+    public void setTillnumber(int tillnumber) {
+        this.tillnumber = tillnumber;
+    }
+
     public String getFirstname() {
         return firstname;
     }
@@ -52,6 +64,14 @@ public class Receipt {
 
     public void setLastname(String lastname) {
         this.lastname = lastname;
+    }
+
+    public String getCashierName() {
+        return cashierName;
+    }
+
+    public void setCashierName(String cashierName) {
+        this.cashierName = cashierName;
     }
 
     public double getCashReceived() {

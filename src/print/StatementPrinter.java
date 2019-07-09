@@ -39,7 +39,7 @@ public class StatementPrinter implements Printable {
         int y =0;
         y += lineHeight;
         g2d.setFont(fontbold);
-        CustomerTransaction tr1 = customerTransactions.get(0);
+        CustomerTransaction tr1 = customerTransactions.get(0); //get the name from any transaction - in this case the first transaction in array
         g.drawString(String.format("%-20s", tr1.getFirstName() + " " + tr1.getLastName()), 0, y);
 
         g2d.setFont(fontplain);

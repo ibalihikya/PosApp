@@ -23,6 +23,7 @@ import model.databaseUtility.SqlStrings;
 import org.postgresql.util.PSQLException;
 import print.ReceiptHeader;
 import print.StatementPrinter;
+import print.SupplierStatementPrinter;
 import sell_ui.ItemsTableModel;
 import sell_ui.ProductDialog;
 import validation.ComboNotSelectedValidator;
@@ -227,6 +228,23 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private JPanel fromDatePanel;
     private JPanel toDatePanel;
     private JButton searchStockTransactions;
+    private JPanel receiptsTopLeftPanel;
+    private JComboBox cashierComboBox;
+    private JComboBox tillComboBox;
+    private JButton searchReceiptsButton;
+    private JPanel receiptsRightPanel;
+    private JTable receiptsTable;
+    private JPanel startDateReceiptsPanel;
+    private JPanel endDateReceiptsPanel;
+    private JFormattedTextField cashFormattedTextField;
+    private JPanel receiptsLeftPanel;
+    private JPanel searchPanel;
+    private JComboBox supplierComboBox1;
+    private JButton printSupplierStatementButton;
+    private JPanel startDateSupStatementPanel;
+    private JPanel stopDateSupStatementPanel;
+    private JPanel container;
+    private JPanel printPanel;
     private JButton editCustomerButton;
     private JScrollPane productsScrollPane;
     private JDialog parent;
@@ -256,6 +274,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private boolean tab4Loaded = false;
     private boolean tab5Loaded = false;
     private boolean tab6Loaded = false;
+    private boolean tab7Loaded = false;
 
 
 
@@ -289,25 +308,28 @@ public class ProductCategory extends JFrame implements TableModelListener{
         "Comment"
     };
 
-    private String[] itemsTableColumnNames = {"No.",
-            "Product",
-            "Quantity",
-            "Units",
-            "Price",
-            "Total Price",
-            "product id"};
 
 
     //Sales Report variables
     private static JFXPanel datePickerFXPanel;
     private static JFXPanel stopDatePickerFXPanel;
+    private static JFXPanel startDatePickerSupStatementFXPanel;
+    private static JFXPanel stopDatePickerSupStatementFXPanel;
     private static JFXPanel chartFxPanel;
     private static DatePicker startDatePicker;
     private static DatePicker stopDatePicker;
+    private static DatePicker startDateSupStatementPicker;
+    private static DatePicker stopDateSupStatementPicker;
+
     private static JFXPanel fromdatePickerFXPanel;
     private static JFXPanel  toDatePickerFXPanel;
     private static DatePicker fromDatePicker;
     private static DatePicker toDatePicker;
+
+    private static JFXPanel startdateReceiptsPickerFXPanel;
+    private static JFXPanel  endDateReceiptsPickerFXPanel;
+    private static DatePicker startdateReceiptsDatePicker;
+    private static DatePicker endDateReceiptstoDatePicker;
 
     private final JTable salesTable;
 
@@ -320,6 +342,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
             "Invoice no.",
             "status",
             "Sold by",
+            "Till",
             "Date",
             "Item Id"
     };
@@ -343,12 +366,11 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
     private String[] deliveryTableColumnNames = {
             "Delivery Id",
-            //"Transaction Id",
             "Supplier",
             "Product",
             "Quantity",
             "Price",
-            "Total Price",
+            "Total Amount",
             "Invoice",
             "Time"
     };
@@ -417,17 +439,35 @@ public class ProductCategory extends JFrame implements TableModelListener{
         stopDatePickerFXPanel = new JFXPanel();
         stopDatePickerFXPanel.setPreferredSize(new Dimension(20,20));
 
+        startDatePickerSupStatementFXPanel = new JFXPanel();
+        startDatePickerSupStatementFXPanel.setPreferredSize(new Dimension(20,20));
+
+        stopDatePickerSupStatementFXPanel = new JFXPanel();
+        stopDatePickerSupStatementFXPanel.setPreferredSize(new Dimension(20,20));
+
         fromdatePickerFXPanel = new JFXPanel();
         fromdatePickerFXPanel.setPreferredSize(new Dimension(20,20));
 
         toDatePickerFXPanel = new JFXPanel();
         toDatePickerFXPanel.setPreferredSize(new Dimension(20,20));
 
+        startdateReceiptsPickerFXPanel = new JFXPanel();
+        startdateReceiptsPickerFXPanel.setPreferredSize(new Dimension(20,20));
+
+        endDateReceiptsPickerFXPanel = new JFXPanel();
+        endDateReceiptsPickerFXPanel.setPreferredSize(new Dimension(20,20));
+
         startDatePanel.add(datePickerFXPanel);
         stopDatePanel.add(stopDatePickerFXPanel);
 
         fromDatePanel.add(fromdatePickerFXPanel);
         toDatePanel.add(toDatePickerFXPanel);
+
+        startDateReceiptsPanel.add(startdateReceiptsPickerFXPanel);
+        endDateReceiptsPanel.add(endDateReceiptsPickerFXPanel);
+
+        startDateSupStatementPanel.add(startDatePickerSupStatementFXPanel);
+        stopDateSupStatementPanel.add(stopDatePickerSupStatementFXPanel);
 
         errorLabel.setVisible(false);
         errorLabel.setText("");
@@ -483,6 +523,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
           populateCategoriesListBox();
 
+
 //        locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
 
         supplierTransactionsTable.getSelectionModel().addListSelectionListener(new SupplierTransactionTableRowListener());
@@ -514,122 +555,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
 //        createItemSuppliedTableModelListener();
 
-        customersTable.getModel().addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                int row = e.getFirstRow();
-                int column = e.getColumn();
 
-                try {
-                    TableModel tableModel = customersTable.getModel();
-                    int customerId = (int) tableModel.getValueAt(row, 0);
-                    Customer customer = new Customer();
-                    customer.setId(customerId);
-                    customer.setFirstname((String)tableModel.getValueAt(row, 1));
-                    customer.setLastname((String)tableModel.getValueAt(row, 2));
-                    customer.setSex((String)tableModel.getValueAt(row, 3));
-                    customer.setBirthday((String)tableModel.getValueAt(row, 4));
-                    customer.setEmail((String)tableModel.getValueAt(row, 5));
-                    customer.setPhone1((String)tableModel.getValueAt(row, 6));
-                    customer.setPhone2((String)tableModel.getValueAt(row, 7));
-                    customer.setAddress((String)tableModel.getValueAt(row, 8));
-                    mAcess.updateCustomer(customer);
-                } catch (Exception e1) {
-                    e1.printStackTrace();
-                }
-
-            }
-        });
-
-        usersTable.getModel().addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                int row = e.getFirstRow();
-                int column = e.getColumn();
-
-                try {
-                    TableModel tableModel = usersTable.getModel();
-                    String username = (String) tableModel.getValueAt(row, 0);
-                    User user = new User();
-                    user.setUserName(username);
-                    user.setFirstName((String)tableModel.getValueAt(row, 1));
-                    user.setLastName((String)tableModel.getValueAt(row, 2));
-                    user.setAdmin((boolean)tableModel.getValueAt(row, 3));
-                    mAcess.updateUser(user);
-                } catch (Exception e1) {
-                    e1.printStackTrace();
-                }
-
-            }
-        });
-
-        settingsTable.getModel().addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                int row = e.getFirstRow();
-                int column = e.getColumn();
-
-                try {
-                    SettingsTableModel tableModel = (SettingsTableModel)settingsTable.getModel();
-                    String nodeName = (String) tableModel.getValueAt(row, 0);
-                    String textContent = (String) tableModel.getValueAt(row, 1);
-
-                    switch (nodeName){
-                        case "Business name":
-                            settingsParser.setBusinessName(textContent);
-                            break;
-                        case "Address":
-                            settingsParser.setLocation(textContent);
-                            break;
-                        case "Phone 1":
-                            settingsParser.setPhone1(textContent);
-                            break;
-                        case "Phone 2":
-                            settingsParser.setPhone2(textContent);
-                            break;
-                        case "TIN":
-                            settingsParser.setTin(textContent);
-                            break;
-                        case "Server Ip":
-                            settingsParser.setServerIp(textContent);
-                            break;
-                    }
-
-                    if(nodeName == "server_ip") {
-                        settingsParser.updateSettings("server", "server_ip", textContent);
-                    }else{
-                        settingsParser.updateSettings("header", nodeName, textContent);
-                    }
-                } catch (Exception e1) {
-                    e1.printStackTrace();
-                }
-
-            }
-        });
-
-        suppliersTable.getModel().addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                int row = e.getFirstRow();
-                int column = e.getColumn();
-                try {
-                    TableModel tableModel = suppliersTable.getModel();
-                    int supplierId = (int) tableModel.getValueAt(row, 0);
-                    Supplier supplier = new Supplier();
-                    supplier.setId(supplierId);
-                    supplier.setSupplierName((String)tableModel.getValueAt(row, 1));
-                    supplier.setAccountNumber((String)tableModel.getValueAt(row, 7));
-                    supplier.setBankName((String)tableModel.getValueAt(row, 6));
-                    supplier.setEmail((String)tableModel.getValueAt(row, 4));
-                    supplier.setPhone1((String)tableModel.getValueAt(row, 2));
-                    supplier.setPhone2((String)tableModel.getValueAt(row, 3));
-                    supplier.setAddress((String)tableModel.getValueAt(row, 5));
-                    mAcess.updateSupplier(supplier);
-                } catch (Exception e1) {
-                    e1.printStackTrace();
-                }
-            }
-        });
 
         eventListProducts = GlazedLists.eventList(getProducts2());
         eventListSuppliers = GlazedLists.eventList(getSuppliers());
@@ -1368,6 +1294,18 @@ public class ProductCategory extends JFrame implements TableModelListener{
                         if(tab1Loaded==false){
                             populateSupplierTable2();
                             populateSupplyTransactionsTable();
+
+                            Thread thread = new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        populateComboBox2(supplierComboBox1,eventListSuppliers,new SupplierTextFilterator());
+                                    } catch (InvocationTargetException e1) {
+                                        e1.printStackTrace();
+                                    }
+                                }
+                            });
+                            thread.start();
                             tab1Loaded=true;
                         }
                         break;
@@ -1397,14 +1335,21 @@ public class ProductCategory extends JFrame implements TableModelListener{
                         break;
                     case 5:
                         if(tab5Loaded==false){
-                            populateUsersTable();
+                            populateTillsCombobox();
+                            populateCashiersComboBox();
                             tab5Loaded=true;
                         }
                         break;
                     case 6:
                         if(tab6Loaded==false){
-                            populateSettingsTable();
+                            populateUsersTable();
                             tab6Loaded=true;
+                        }
+                        break;
+                    case 7:
+                        if(tab7Loaded==false){
+                            populateSettingsTable();
+                            tab7Loaded=true;
                         }
                         break;
                 }
@@ -1422,6 +1367,78 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 } catch (Exception e1) {
                     e1.printStackTrace();
                 }
+
+            }
+        });
+        searchReceiptsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                Query query = new Query();
+                query.setStartDate(startdateReceiptsDatePicker.getValue().toString());
+                query.setEndDate(endDateReceiptstoDatePicker.getValue().toString());
+                if(tillComboBox.getSelectedIndex()>0)
+                    query.setTillnumber((int)tillComboBox.getSelectedItem());
+
+                if(cashierComboBox.getSelectedIndex()>0)
+                    query.setUsername(((User) cashierComboBox.getSelectedItem()).getUserName());
+
+                try {
+                    double cash = mAcess.getCashReceived(query);
+                    cashFormattedTextField.setValue(cash);
+                    populateReceiptTable(query);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+
+
+
+            }
+        });
+        printSupplierStatementButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int supplierId = ((Supplier)supplierComboBox1.getSelectedItem()).getId();
+                ArrayList<SupplierTransaction> supplierTransactions = getSupplierTransactions(supplierId,
+                        startDateSupStatementPicker.getValue().toString(),stopDateSupStatementPicker.getValue().toString());
+
+                for(SupplierTransaction supplierTransaction : supplierTransactions){
+                    supplierTransaction.addAllItems(getDeliveries(supplierTransaction.getId()));
+                }
+
+                ReceiptHeader receiptHeader = new ReceiptHeader();
+                receiptHeader.setBusinessName(settingsParser.getBusinessName());
+                receiptHeader.setLocation(settingsParser.getLocation());
+                receiptHeader.setTelephoneNumber1(settingsParser.getPhone1());
+                receiptHeader.setTelephoneNumber2(settingsParser.getPhone2());
+                receiptHeader.setTin(settingsParser.getTin());
+
+                //TODO Remove this hardcoded value
+                receiptHeader.setUserName("robert");
+
+                PrinterJob job = PrinterJob.getPrinterJob();
+                PageFormat pf = job.defaultPage();
+                Paper paper = new Paper();
+                double margin = 3.6; // 1 tenth of an inch
+                paper.setImageableArea(margin, margin, paper.getWidth() - margin * 2, paper.getHeight()
+                        - margin * 2);
+                pf.setPaper(paper);
+
+                job.setPrintable(new SupplierStatementPrinter(supplierTransactions, receiptHeader),pf);
+
+                //boolean ok = job.printDialog();
+                if (true) {
+                    try {
+                        //throw(new PrinterException("Printer not connected!"));
+                        job.print();
+                    } catch (PrinterException ex) {
+          /* The job did not successfully complete */
+                        System.out.println(ex);
+                    }
+                }
+
+
 
             }
         });
@@ -1548,7 +1565,6 @@ public class ProductCategory extends JFrame implements TableModelListener{
         String [] deliveriesPropertyNames = {"transactionId","sellername","productName", "quantity", "price", "totalPrice",
                 "invoiceNumber", "time"};
 
-        //boolean [] editable = {false,false, false, true, true, true, true, false};
         boolean [] editable = {false,false, false, false, false, false, false, false};
 
         TableFormat tableFormat = GlazedLists.tableFormat(Item.class, deliveriesPropertyNames, deliveryTableColumnNames,
@@ -1615,6 +1631,34 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 editable);
         populateFilterableTable(suppliersTable,suppliers,
                 supplierFilterator,supplierFilterTextField,tableFormat);
+
+        addSuppliersTableModelListener();
+    }
+
+    private void addSuppliersTableModelListener() {
+        suppliersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+                try {
+                    TableModel tableModel = suppliersTable.getModel();
+                    int supplierId = (int) tableModel.getValueAt(row, 0);
+                    Supplier supplier = new Supplier();
+                    supplier.setId(supplierId);
+                    supplier.setSupplierName((String)tableModel.getValueAt(row, 1));
+                    supplier.setAccountNumber((String)tableModel.getValueAt(row, 7));
+                    supplier.setBankName((String)tableModel.getValueAt(row, 6));
+                    supplier.setEmail((String)tableModel.getValueAt(row, 4));
+                    supplier.setPhone1((String)tableModel.getValueAt(row, 2));
+                    supplier.setPhone2((String)tableModel.getValueAt(row, 3));
+                    supplier.setAddress((String)tableModel.getValueAt(row, 5));
+                    mAcess.updateSupplier(supplier);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
     }
 
     private void populateUsersTable() {
@@ -1641,6 +1685,32 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 editable);
         populateFilterableTable(usersTable,users,
                 userFilterator,userFilterTextField,tableFormat);
+
+        addUserTableModelListener();
+    }
+
+    private void addUserTableModelListener() {
+        usersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    TableModel tableModel = usersTable.getModel();
+                    String username = (String) tableModel.getValueAt(row, 0);
+                    User user = new User();
+                    user.setUserName(username);
+                    user.setFirstName((String)tableModel.getValueAt(row, 1));
+                    user.setLastName((String)tableModel.getValueAt(row, 2));
+                    user.setAdmin((boolean)tableModel.getValueAt(row, 3));
+                    mAcess.updateUser(user);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
     }
 
     private void populateRefundsTable() {
@@ -1687,6 +1757,54 @@ public class ProductCategory extends JFrame implements TableModelListener{
         SettingsTableModel settingsTableModel = new SettingsTableModel(settings, columnNames);
 
         settingsTable.setModel(settingsTableModel);
+
+        addSettingsTableModelListener();
+    }
+
+    private void addSettingsTableModelListener() {
+        settingsTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    SettingsTableModel tableModel = (SettingsTableModel)settingsTable.getModel();
+                    String nodeName = (String) tableModel.getValueAt(row, 0);
+                    String textContent = (String) tableModel.getValueAt(row, 1);
+
+                    switch (nodeName){
+                        case "Business name":
+                            settingsParser.setBusinessName(textContent);
+                            break;
+                        case "Address":
+                            settingsParser.setLocation(textContent);
+                            break;
+                        case "Phone 1":
+                            settingsParser.setPhone1(textContent);
+                            break;
+                        case "Phone 2":
+                            settingsParser.setPhone2(textContent);
+                            break;
+                        case "TIN":
+                            settingsParser.setTin(textContent);
+                            break;
+                        case "Server Ip":
+                            settingsParser.setServerIp(textContent);
+                            break;
+                    }
+
+                    if(nodeName == "server_ip") {
+                        settingsParser.updateSettings("server", "server_ip", textContent);
+                    }else{
+                        settingsParser.updateSettings("header", nodeName, textContent);
+                    }
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
     }
 
     private void populateCustomersTable() {
@@ -1729,8 +1847,38 @@ public class ProductCategory extends JFrame implements TableModelListener{
         TableColumn sexColumn = customersTable.getColumnModel().getColumn(3);
         sexColumn.setCellEditor(new DefaultCellEditor(sexComboBox));
         customersTable.setRowHeight(25);
+
+        addCustomerTableModelListener();
     }
 
+    private void addCustomerTableModelListener() {
+        customersTable.getModel().addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+
+                try {
+                    TableModel tableModel = customersTable.getModel();
+                    int customerId = (int) tableModel.getValueAt(row, 0);
+                    Customer customer = new Customer();
+                    customer.setId(customerId);
+                    customer.setFirstname((String)tableModel.getValueAt(row, 1));
+                    customer.setLastname((String)tableModel.getValueAt(row, 2));
+                    customer.setSex((String)tableModel.getValueAt(row, 3));
+                    customer.setBirthday((String)tableModel.getValueAt(row, 4));
+                    customer.setEmail((String)tableModel.getValueAt(row, 5));
+                    customer.setPhone1((String)tableModel.getValueAt(row, 6));
+                    customer.setPhone2((String)tableModel.getValueAt(row, 7));
+                    customer.setAddress((String)tableModel.getValueAt(row, 8));
+                    mAcess.updateCustomer(customer);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+
+            }
+        });
+    }
 
 
     //populates the customer statement table
@@ -1951,6 +2099,33 @@ public class ProductCategory extends JFrame implements TableModelListener{
         categoryList.setSelectedIndex(-1);
     }
 
+    private void populateTillsCombobox() {
+        ArrayList<Integer> tills = null;
+        try {
+            tills = mAcess.getTillNumbers();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        ComboBoxModel cbModel = new DefaultComboBoxModel(tills.toArray());
+        tillComboBox.setModel(cbModel);
+        tillComboBox.insertItemAt("",0);
+        tillComboBox.setSelectedIndex(-1);
+
+    }
+
+    private void populateCashiersComboBox() {
+        ArrayList<User> users = null;
+        try {
+            users = mAcess.getUsers();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        ComboBoxModel cbModel = new DefaultComboBoxModel(users.toArray());
+        cashierComboBox.setModel(cbModel);
+        cashierComboBox.insertItemAt("",0);
+        cashierComboBox.setSelectedIndex(-1);
+    }
+
 //    private void populateTable(JTable table, ArrayList<Object>data ){
 //        Object [][] obj2D = new Object[data.size()][];
 //        int i=0;
@@ -2136,6 +2311,16 @@ public class ProductCategory extends JFrame implements TableModelListener{
         ArrayList<SupplierTransaction> supplierTransactions = new ArrayList<>();
         try {
             supplierTransactions = mAcess.getSupplierTransactions();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return supplierTransactions;
+    }
+
+    private ArrayList<SupplierTransaction> getSupplierTransactions(int supplierId, String startDate, String endDate) {
+        ArrayList<SupplierTransaction> supplierTransactions = new ArrayList<>();
+        try {
+            supplierTransactions = mAcess.getSupplierTransactions(supplierId, startDate, endDate);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -2538,6 +2723,39 @@ public class ProductCategory extends JFrame implements TableModelListener{
     }
 
 
+    private void populateReceiptTable(Query query) {
+
+
+        ArrayList<Receipt> receipts = getReceipts(query);
+
+        EventList eventList = new BasicEventList();
+        eventList.addAll(receipts);
+
+        String [] receiptColumLabels = {"Receipt no.","Cash Received", "Change", "Invoice no.", "Balance", "Till" ,
+                "Cashier","Date" };
+        String [] receiptPropertyNames = {"receiptId", "cashReceived", "change", "invoice_id", "balance", "tillnumber",
+                "cashierName", "date_created"};
+        boolean [] editable = {false,false, false,false,false, false,false,false};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Receipt.class, receiptPropertyNames, receiptColumLabels,
+                editable);
+        receiptsTable.setModel(new EventTableModel(eventList,tableFormat));
+        //receiptsTable.getColumnModel().removeColumn(receiptsTable.getColumnModel().getColumn(4)); //hide invoice no
+        receiptsTable.getColumnModel().removeColumn(receiptsTable.getColumnModel().getColumn(4)); //hide balance
+    }
+
+    private ArrayList<Receipt> getReceipts(Query query) {
+        ArrayList<Receipt> receipts = new ArrayList<>();
+        try {
+            receipts = mAcess.getReceipts(query);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return receipts;
+    }
+
+
+
 
 
     ////////***********************
@@ -2557,6 +2775,18 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
         toDatePicker = new DatePicker();
         toDatePickerFXPanel.setScene(new Scene(toDatePicker));
+
+        startdateReceiptsDatePicker = new DatePicker();
+        startdateReceiptsPickerFXPanel.setScene(new Scene(startdateReceiptsDatePicker));
+
+        endDateReceiptstoDatePicker = new DatePicker();
+        endDateReceiptsPickerFXPanel.setScene(new Scene(endDateReceiptstoDatePicker));
+
+        startDateSupStatementPicker = new DatePicker();
+        startDatePickerSupStatementFXPanel.setScene(new Scene(startDateSupStatementPicker));
+
+        stopDateSupStatementPicker = new DatePicker();
+        stopDatePickerSupStatementFXPanel.setScene(new Scene(stopDateSupStatementPicker));
     }
 
     public static void init(){

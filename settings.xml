@@ -4,12 +4,13 @@
         <location>Kikubo</location>
         <phone1>07891912121</phone1>
         <phone2>0799203021</phone2>
-        <tin>10009124561</tin>
+        <tin>10009124564</tin>
+        <till_no>9</till_no>
     </header>
 
-    <till>
-        <till_no>1</till_no>
-    </till>
+    <!--<till>-->
+        <!--<till_no>1</till_no>-->
+    <!--</till>-->
 
     <server>
         <server_ip>127.0.0.1</server_ip>

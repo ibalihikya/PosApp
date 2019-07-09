@@ -23,6 +23,10 @@ public class Item  {
     private String units;
     private int transactionId; //TODO: rename this to id; this is the primary key in the item table
     private InvoiceStatus invoiceStatus;
+    //TODO: may need to create a child class with the attributes below because these items are supplier items not the ones being bought by a customer
+    private double amountPaid;
+    private double balance;
+    private int till;
 
     public int getSellerid() {
         return sellerid;
@@ -56,6 +60,14 @@ public class Item  {
         this.margin = margin;
     }
 
+    public int getTill() {
+        return till;
+    }
+
+    public void setTill(int till) {
+        this.till = till;
+    }
+
     public int getTransactionId() {
         return transactionId;
     }
@@ -63,6 +75,8 @@ public class Item  {
     public void setTransactionId(int transactionId) {
         this.transactionId = transactionId;
     }
+
+
 
     public Item(){
         this.discount = 0.0;
@@ -167,6 +181,22 @@ public class Item  {
         this.discount = discount;
     }
 
+    public double getAmountPaid() {
+        return amountPaid;
+    }
+
+    public void setAmountPaid(double amountPaid) {
+        this.amountPaid = amountPaid;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    public void setBalance(double balance) {
+        this.balance = balance;
+    }
+
     public double computeTotalPrice(){//TODO: fix error in the item.computeTotalPrice function
         if(quantity<1){
             this.totalPrice =  price;
@@ -197,6 +227,7 @@ public class Item  {
                 invoiceNumber,
                 invoiceStatus,
                 sellername,
+                till,
                 time,
                 transactionId
         };

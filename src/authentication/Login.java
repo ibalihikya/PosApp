@@ -133,9 +133,14 @@ public class Login extends JFrame {
                             loadingLabel.setVisible(true);
                             //String [] args = {posUser.getUserName()};
                             //UI.main(args);
+                        String userlevel = "general";
+
+                        if(posUser.isAdmin()){
+                            userlevel = "admin";
+                        }
 
                         UI salesUi = new UI("posapp");
-                        String [] args = {posUser.getUserName()};
+                        String [] args = {posUser.getUserName(),userlevel};
                         salesUi.main(args);
                             try {
                                 Thread.sleep(5000);

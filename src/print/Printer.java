@@ -96,7 +96,6 @@ public class Printer implements Printable {
 
             inputString = String.format("%-17s", inputString);
             g.drawString(inputString, 0, y);
-            //y += lineHeight;
             g2d.setFont(fontplain);
             g.drawString(String.format("%,-9.2f",item.getQuantity()), 86, y);
             g.drawString(String.format("%-11s",item.getUnits()), 113, y);

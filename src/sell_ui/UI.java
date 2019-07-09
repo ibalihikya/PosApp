@@ -74,10 +74,13 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     private JPanel totalPanel;
     private JPanel topPanel;
     private JButton defineProductButton;
+    private JFormattedTextField tillNumberformattedTextField;
+    private JButton editTillButton;
 
     private static MySqlAccess mAcess;
     private CustomerTransaction customerTransaction;
     private static String userName;
+    private static String userlevel = "general"; // not admin, can not edit till
     private static Double grandTotal;
     private int rowNumber = 0;
     ProductDialog productsDialog;
@@ -127,6 +130,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
             "Total Price",
             "product id"};
 
+    private int tillNumber=1; //till 1 is the default
+
     private int lastrow = -1;
 
     public UI(String title) {
@@ -152,11 +157,16 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
         setIconImage(getScaledImage(logoImage,30,30,Color.decode("#616161") ));
 
+        ImageIcon edit_till_numberIcon = createImageIcon("/images/ic_edit_black_18dp.png", "Edit Till number");
+
         topFrame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
 
+        editTillButton.setIcon(edit_till_numberIcon);
 
         settingsParser = new SettingsParser("settings.xml");
         this.serverIP=settingsParser.getServerIp();
+
+        tillNumber = settingsParser.getTillNumber();
 
         //TODO: remove duplication of Header and ReceiptHeader Classes
         header = new Header();
@@ -173,6 +183,11 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         receiptHeader.setTelephoneNumber2(settingsParser.getPhone2());
         receiptHeader.setTin(settingsParser.getTin());
         receiptHeader.setUserName(userName);
+
+        tillNumberformattedTextField.setValue(settingsParser.getTillNumber());
+        tillNumberformattedTextField.setEnabled(false);
+        tillNumberformattedTextField.setFocusable(false);
+
 
         grandTotal = 0.0;
 
@@ -196,7 +211,16 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         customersDialog = new CustomerDialog(this, "Customers",serverIP);
         customersDialog.setSize(new Dimension(700,500));
 
+        if(!userlevel.equals("admin")){
+            editTillButton.setVisible(false);
+        }
+
+        editTillButton.setToolTipText("Edit Till number");
+        editTillButton.setContentAreaFilled(false);
+
+
         receiptTextField.setFocusable(false);
+        editTillButton.setFocusable(false);
         changeformattedTextField.setFocusable(false);
         cashformattedTextField.setFocusable(false);
         buttonSubmit.setFocusable(false);
@@ -705,6 +729,26 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 }
             }
         });
+        editTillButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                tillNumberformattedTextField.setEnabled(true);
+                tillNumberformattedTextField.setFocusable(true);
+                tillNumberformattedTextField.requestFocusInWindow();
+            }
+        });
+        tillNumberformattedTextField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                tillNumber=(int)tillNumberformattedTextField.getValue();
+                settingsParser.setTillNumber(tillNumber);
+                tillNumberformattedTextField.setEnabled(false);
+                tillNumberformattedTextField.setFocusable(false);
+                KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+                fm.getActiveWindow().requestFocusInWindow();
+
+            }
+        });
     }
 
     //reset table and fields
@@ -955,6 +999,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     @Override
     public void tableChanged(TableModelEvent e) {
 
+
         int row = e.getFirstRow();
         int column = e.getColumn();
         if(column != -1 && column !=5 && toModify){//-1 to avoid updating non existent column when adding first row;
@@ -1105,7 +1150,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 double change = (Double)changeformattedTextField.getValue();
 
 
-                int invoiceId = mAcess.generateInvoice(customerTransaction,invoiceStatus);
+                int invoiceId = mAcess.generateInvoice(customerTransaction,invoiceStatus,tillNumber);
 
                 Receipt receipt = new Receipt();
                 receipt.setCashReceived(cash_received);
@@ -1127,14 +1172,13 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 receipt.setReceiptType(ReceiptType.arrears);
 
                 receipt.setCustomerId(customerId);
+                receipt.setTillnumber(tillNumber);
+                receipt.setCashierName(userName);
                 int receiptId = mAcess.generateReceipt(receipt);
                 receiptHeader.setReceiptNumber(receiptId);
                 receiptHeader.setBalance(balance);
                 docType = DocType.RECEIPT;
                 receiptTextField.setText(Integer.toString(receiptId));
-
-
-
 
             }else{//Sold on credit, print only invoice
 
@@ -1144,7 +1188,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
                 docType = DocType.INVOICE;
                 if(n==JOptionPane.YES_OPTION) {
-                    int invoiceId = mAcess.generateInvoice(customerTransaction, invoiceStatus);
+                    int invoiceId = mAcess.generateInvoice(customerTransaction, invoiceStatus,tillNumber);
                     receiptHeader.setInvoiceNumber(invoiceId);
                     invoiceTextField.setText(Integer.toString(invoiceId));
                     invoiceTextField.setBackground(accentColor);
@@ -1236,6 +1280,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
     }
 
+
+
     public static void main(String[] args)  {
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
@@ -1250,6 +1296,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         }
 
         userName = args[0];
+        userlevel = args[1];
+
         UI frame = new UI("Sales Partner" + " - " + userName);
         frame.setContentPane(frame.mainPanel);
         frame.addKeyListener(frame);

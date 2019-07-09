@@ -20,6 +20,7 @@ public class SettingsParser {
     private String phone1;
     private String phone2;
     private String tin;
+    private int till_no;
     private Document doc;
     private File inputFile;
     private String serverIp;
@@ -63,6 +64,10 @@ public class SettingsParser {
                             .getElementsByTagName("tin")
                             .item(0)
                             .getTextContent();
+                    till_no = Integer.parseInt (eElement
+                            .getElementsByTagName("till_no")
+                            .item(0)
+                            .getTextContent());
                 }
             }
 
@@ -109,6 +114,10 @@ public class SettingsParser {
 
     public String getTin() {
         return tin;
+    }
+
+    public int getTillNumber() {
+        return till_no;
     }
 
     public void setBusinessName(String businessName) {
@@ -160,6 +169,10 @@ public class SettingsParser {
 
     public void setTin(String tin) {
         updateSettings("header","tin", tin);
+    }
+
+    public void setTillNumber(int till_no) {
+        updateSettings("header","till_no", Integer.toString(till_no));
     }
 }
 
