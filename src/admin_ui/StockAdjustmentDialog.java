@@ -24,7 +24,6 @@ public class StockAdjustmentDialog extends JDialog {
     private JTextArea commentTextArea;
     private JComboBox transactionTypeComboBox;
     private JFormattedTextField quantityFormattedTextField;
-    private JTextField refundTextField;
     private JPanel refundPanel;
     private static MySqlAccess mAcess;
     private String username;
@@ -44,7 +43,6 @@ public class StockAdjustmentDialog extends JDialog {
         locationComboBox.insertItemAt("", 0);
         locationComboBox.setSelectedIndex(0);
 
-        refundPanel.setVisible(false);
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -85,7 +83,7 @@ public class StockAdjustmentDialog extends JDialog {
             }
         }, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 
-        setMinimumSize(new Dimension(500, 300));
+        setMinimumSize(new Dimension(600, 300));
         pack();
         setLocationRelativeTo(null);
 
@@ -93,24 +91,32 @@ public class StockAdjustmentDialog extends JDialog {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    Site location = (Site)locationComboBox.getSelectedItem();
-                    Product product = (Product)productsComboBox.getSelectedItem();
-                    int productId = product.getProductId();
-                    double expectedQuantity = mAcess.getQuantityInStock(productId, location);
-                    expectedQuantityFormattedTextField.setText(Double.toString(expectedQuantity));
+                    if(locationComboBox.getSelectedIndex()>0) {//to prevent throwing exceptions when no location is selected
+                        Site location = (Site) locationComboBox.getSelectedItem();
+                        Product product = (Product) productsComboBox.getSelectedItem();
+                        int productId = product.getProductId();
+                        double expectedQuantity = mAcess.getQuantityInStock(productId, location);
+                        expectedQuantityFormattedTextField.setText(Double.toString(expectedQuantity));
+                    }
                 } catch (Exception e1) {
                     e1.printStackTrace();
                 }
             }
         });
-        transactionTypeComboBox.addActionListener(new ActionListener() {
+
+        locationComboBox.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String transactionType = (String)transactionTypeComboBox.getSelectedItem();
-                if(transactionType.equals("return")){
-                    refundPanel.setVisible(true);
-                }else {
-                    refundPanel.setVisible(false);
+                try {
+                    if(productsComboBox.getSelectedIndex()>0) {
+                        Site location = (Site) locationComboBox.getSelectedItem();
+                        Product product = (Product) productsComboBox.getSelectedItem();
+                        int productId = product.getProductId();
+                        double expectedQuantity = mAcess.getQuantityInStock(productId, location);
+                        expectedQuantityFormattedTextField.setText(Double.toString(expectedQuantity));
+                    }
+                } catch (Exception e1) {
+                    e1.printStackTrace();
                 }
             }
         });
@@ -122,56 +128,78 @@ public class StockAdjustmentDialog extends JDialog {
             int productId = product.getProductId();
 
              double recorded_quantity = Double.parseDouble(expectedQuantityFormattedTextField.getText());
-             double delta_quantity = Double.parseDouble(quantityFormattedTextField.getText());
-            //String comment = commentTextArea.getText();
-            String transactionType = (String)transactionTypeComboBox.getSelectedItem();
+             //double delta_quantity = Double.parseDouble(quantityFormattedTextField.getText());
+//            String transactionType = (String)transactionTypeComboBox.getSelectedItem();
             Site location = (Site) locationComboBox.getSelectedItem();
+//
+//            Direction direction = Direction.in;
+//            switch (transactionType){
+//                case "less by":
+//                    direction = Direction.down;
+//                    break;
+//                case "more by":
+//                    direction = Direction.up;
+//                    break;
+//                case "return":
+//                    direction = Direction.in;
+//                    break;
+//            }
 
-            Direction direction = Direction.in;
-            switch (transactionType){
-                case "less by":
-                    direction = Direction.down;
-                    break;
-                case "more by":
-                    direction = Direction.up;
-                    break;
-                case "return":
-                    direction = Direction.in;
-                    break;
-            }
-
-            if(direction.equals(Direction.down) && (delta_quantity > recorded_quantity) || (delta_quantity<0)){ //prevent negative values
-                JOptionPane.showMessageDialog(null,"Change can not be negative!","Invalid value"
-                        ,JOptionPane.ERROR_MESSAGE);
-            }else {
-
-                StockItem stockItem = new StockItem();
-                stockItem.setProductId(productId);
-                stockItem.setDirection(direction);
-
-                //source, destination are the same because it is an adjustment which is simply a manual correction
-                stockItem.setSource_dest(location);
-                stockItem.setLocation(location);
-                stockItem.setQuantity(Double.parseDouble(quantityFormattedTextField.getText()));
-                stockItem.setComment(commentTextArea.getText());
-
-                int transactionid = mAcess.updateStock(username, stockItem);
-                StockItem returnedStockItem = mAcess.getStockItem(transactionid);
-               // StockItem returnedStockItem = mAcess.updateStock(username, stockItem);
-                returnedStockItem.setProductName(product.getProductName());
-                stockItems.add(0,returnedStockItem); // add to the top of the list
+//            if(direction.equals(Direction.down) && (delta_quantity > recorded_quantity) || (delta_quantity<0)){ //prevent negative values
+//                JOptionPane.showMessageDialog(null,"Change can not be negative!","Invalid value"
+//                        ,JOptionPane.ERROR_MESSAGE);
+//            }else {
+//
+//                StockItem stockItem = new StockItem();
+//                stockItem.setProductId(productId);
+//                stockItem.setDirection(direction);
+//
+//                //source, destination are the same because it is an adjustment which is simply a manual correction
+//                stockItem.setSource_dest(location);
+//                stockItem.setLocation(location);
+//                stockItem.setQuantity(Double.parseDouble(quantityFormattedTextField.getText()));
+//                stockItem.setComment(commentTextArea.getText());
+//
+//                int transactionid = mAcess.updateStock(username, stockItem);
+//                StockItem returnedStockItem = mAcess.getStockItem(transactionid);
+//               // StockItem returnedStockItem = mAcess.updateStock(username, stockItem);
+//                returnedStockItem.setProductName(product.getProductName());
+//                stockItems.add(0,returnedStockItem); // add to the top of the list
 
 
-                if (transactionType.equals("return")) {
-                    Refund refund = new Refund();
-                    refund.setAmount(Double.parseDouble(refundTextField.getText()));
-                    refund.setComment(commentTextArea.getText());
-                    //refund.setId(transactionid);
-                    refund.setId(returnedStockItem.getTransactionId());
-                    mAcess.refund(refund);
-                }
-                dispose();
-            }
+//                if (transactionType.equals("return")) {
+//                    Refund refund = new Refund();
+//                    refund.setAmount(Double.parseDouble(refundTextField.getText()));
+//                    refund.setComment(commentTextArea.getText());
+//                    //refund.setId(transactionid);
+//                    refund.setId(returnedStockItem.getTransactionId());
+//                    //mAcess.refund(refund);
+//                }
+               // dispose();
+            //}
+
+
+            StockItem stockItem = new StockItem();
+            stockItem.setProductId(productId);
+            stockItem.setDirection(Direction.adj);
+
+            //source, destination are the same because it is an adjustment which is simply a manual correction
+            stockItem.setSource_dest(location);
+            stockItem.setLocation(location);
+            stockItem.setQuantity(0);
+            stockItem.setBalance(Double.parseDouble(quantityFormattedTextField.getText()));
+            stockItem.setComment(commentTextArea.getText());
+
+            int transactionid = mAcess.adjustStock(username, stockItem);
+            StockItem returnedStockItem = mAcess.getStockItem(transactionid);
+            // StockItem returnedStockItem = mAcess.updateStock(username, stockItem);
+            returnedStockItem.setProductName(product.getProductName());
+            stockItems.add(0,returnedStockItem); // add to the top of the list
+
+            //reset form fields
+            commentTextArea.setText("");
+            expectedQuantityFormattedTextField.setText("");
+            quantityFormattedTextField.setText("");
 
         } catch (Exception e) {
             e.printStackTrace();

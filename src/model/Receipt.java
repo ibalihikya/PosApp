@@ -14,6 +14,7 @@ public class Receipt {
     private String description;
     private String date_created;
     private String date_modified;
+    private String invoice_date_created;
     private int tillnumber;
     private String cashierName;
 
@@ -36,6 +37,14 @@ public class Receipt {
 
     public int getCustomerId() {
         return customerId;
+    }
+
+    public String getInvoice_date_created() {
+        return invoice_date_created;
+    }
+
+    public void setInvoice_date_created(String invoice_date_created) {
+        this.invoice_date_created = invoice_date_created;
     }
 
     public void setCustomerId(int customerId) {

@@ -8,11 +8,16 @@ import model.Payment;
 import model.Supplier;
 import model.databaseUtility.MySqlAccess;
 import model.databaseUtility.SqlStrings;
+import sell_ui.UI;
 
 import javax.swing.*;
+import javax.swing.text.DefaultFormatterFactory;
+import javax.swing.text.NumberFormatter;
+import java.awt.*;
 import java.awt.event.*;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
+import java.text.NumberFormat;
 
 public class SupplierPaymentDialog extends JDialog {
     private JPanel contentPane;
@@ -26,6 +31,7 @@ public class SupplierPaymentDialog extends JDialog {
     private JComboBox paymentTypecomboBox;
     private static MySqlAccess mAcess;
     Double balance = 0.0;
+    private static NumberFormat doubleFormat;
 
     public SupplierPaymentDialog(JFrame frame, EventList suppliersEventlist, String serverIp) {
         super(frame,true);
@@ -34,6 +40,13 @@ public class SupplierPaymentDialog extends JDialog {
         getRootPane().setDefaultButton(buttonOK);
         setTitle("Payments & Adjustment");
         mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME,serverIp);
+
+        doubleFormat = NumberFormat.getNumberInstance();
+        NumberFormatter doubleFormatter = new NumberFormatter(doubleFormat);
+        doubleFormatter.setFormat(doubleFormat);
+
+        paymentAmountFormattedTextField.setFormatterFactory(
+                new DefaultFormatterFactory(doubleFormatter));
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -97,6 +110,37 @@ public class SupplierPaymentDialog extends JDialog {
 
         pack();
         setLocationRelativeTo(null);
+        paymentAmountFormattedTextField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                super.keyTyped(e);
+            }
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if(e.getKeyCode()==KeyEvent.VK_ESCAPE){
+                    KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+                    paymentAmountFormattedTextField.setValue(null);
+                    paymentAmountFormattedTextField.setFocusable(false);
+                    fm.getActiveWindow().requestFocusInWindow();
+                }
+
+                double cash = 0.0;
+
+                if(!paymentAmountFormattedTextField.getText().isEmpty()) {
+                    cash = (double) UI.getFormattedTextFieldValue(paymentAmountFormattedTextField);
+                }
+
+                if(cash>0.0) {
+                    paymentAmountFormattedTextField.setText(String.format("%,.0f", cash));
+                }
+            }
+        });
     }
 
     private void onOK() {
@@ -105,7 +149,7 @@ public class SupplierPaymentDialog extends JDialog {
             Supplier supplier = (Supplier)supplierComboBox2.getSelectedItem();
             int supplierId = supplier.getId();
             Payment payment = new Payment();
-            Double amount = Double.parseDouble(paymentAmountFormattedTextField.getText());
+            Double amount = (Double)UI.getFormattedTextFieldValue(paymentAmountFormattedTextField);
             if(balance<amount){
                 JOptionPane.showMessageDialog(null,"Amount should not be more than balance",
                         "Error", JOptionPane.ERROR_MESSAGE);
@@ -118,7 +162,7 @@ public class SupplierPaymentDialog extends JDialog {
                 mAcess.submitPayment(payment);
                 //resetFormFields(paySupplierPanel);
                 amountOwedFormattedTextField.setText("");
-                paymentAmountFormattedTextField.setText("");
+                paymentAmountFormattedTextField.setText(null);
                 paymentDescriptionTextField.setText("");
                 //populateSupplyTransactionsTable();
                 dispose();

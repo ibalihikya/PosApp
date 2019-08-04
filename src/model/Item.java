@@ -15,6 +15,7 @@ public class Item  {
     private double totalPrice;
     private int receiptId; // should remove this in favour of invoiceNumber below
     private String time; // time sold
+    private String time_deleted; // time deleted
     private static int itemCount = 0;
     private double margin;
     private String sellername; //username for logged in user or supplier name
@@ -26,6 +27,7 @@ public class Item  {
     //TODO: may need to create a child class with the attributes below because these items are supplier items not the ones being bought by a customer
     private double amountPaid;
     private double balance;
+    private String customerName;
     private int till;
 
     public int getSellerid() {
@@ -34,6 +36,14 @@ public class Item  {
 
     public void setSellerid(int sellerid) {
         this.sellerid = sellerid;
+    }
+
+    public String getTime_deleted() {
+        return time_deleted;
+    }
+
+    public void setTime_deleted(String time_deleted) {
+        this.time_deleted = time_deleted;
     }
 
     public int getInvoiceNumber() {
@@ -58,6 +68,14 @@ public class Item  {
 
     public void setMargin(double margin) {
         this.margin = margin;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 
     public int getTill() {
@@ -219,17 +237,20 @@ public class Item  {
     // for detailed sales report
     public Object[] toArray() {
         Object[] item = {
+                transactionId,
                 productName,
                 quantity,
                 price,
                 totalPrice,
                 margin,
                 invoiceNumber,
+                customerName,
                 invoiceStatus,
                 sellername,
                 till,
                 time,
-                transactionId
+                productId
+
         };
         return item;
     }

@@ -14,5 +14,6 @@
 
     <server>
         <server_ip>127.0.0.1</server_ip>
+        <default_stock_destination>2</default_stock_destination>
     </server>
 </business>

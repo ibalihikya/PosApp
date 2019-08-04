@@ -48,6 +48,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.sql.SQLException;
 import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -243,8 +244,17 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private JButton printSupplierStatementButton;
     private JPanel startDateSupStatementPanel;
     private JPanel stopDateSupStatementPanel;
-    private JPanel container;
     private JPanel printPanel;
+    private JPanel leftReturnsPanel;
+    private JTable returnDetailsTable;
+    private JPanel returnsLeftTopPanel;
+    private JPanel distributionfilterPanel;
+    private JButton refreshButton1;
+    private JButton refreshReturnsButton;
+    private JButton viewDeletedSalesButton;
+    private JFormattedTextField deletedSalesFormattedTextField;
+    private JLabel keyLabel1;
+    private JLabel keyLabel2;
     private JButton editCustomerButton;
     private JScrollPane productsScrollPane;
     private JDialog parent;
@@ -267,6 +277,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private static EventList<StockItem> stockItemsEventList;
     private SettingsParser settingsParser;
     private String serverIp ="";
+    private static String loggedInUser;
 
     private boolean tab1Loaded = false;
     private boolean tab2Loaded = false;
@@ -275,6 +286,8 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private boolean tab5Loaded = false;
     private boolean tab6Loaded = false;
     private boolean tab7Loaded = false;
+    private boolean tab8Loaded = false;
+
 
 
 
@@ -334,17 +347,20 @@ public class ProductCategory extends JFrame implements TableModelListener{
     private final JTable salesTable;
 
     private String[] salesTableColumnNames = {
+            "Item no",
             "Product Name",
             "Quantity",
             "Price",
             "Total",
             "Margin",
             "Invoice no.",
+            "Customer",
             "status",
             "Sold by",
             "Till",
             "Date",
-            "Item Id"
+            "ProductId"
+
     };
 
     private String[] salesSummaryTableColumnNames = {
@@ -389,12 +405,20 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
         deleteTransactionButton.setVisible(false);
         deleteItemButton.setVisible(false);
+        customerComboBox.setVisible(false);
+        printStatementButton.setVisible(false);
+
+        marginformattedTextField.setEditable(false);
+        cashFormattedTextField.setEditable(false);
+        deletedSalesFormattedTextField.setEditable(false);
 
        leftxPanel.setBackground(new Color(214,217,223));
        addProductPanel.setBackground(new Color(214,217,223));
+       keyLabel1.setForeground(Color.magenta);
+       keyLabel2.setForeground(Color.red);
 
-       unpackButton.setVisible(false);//getting rid of unpack functionality, can be done with distribute and adjust
-       unpackButton.setEnabled(false);//getting rid of unpack functionality, can be done with distribute and adjust
+//       unpackButton.setVisible(false);//getting rid of unpack functionality, can be done with distribute and adjust
+//       unpackButton.setEnabled(false);//getting rid of unpack functionality, can be done with distribute and adjust
 
         java.net.URL imgURL = getClass().getResource("/images/ic_trending_up_red_48dp.png");
         Image logoImage = Toolkit.getDefaultToolkit().getImage(imgURL);
@@ -505,28 +529,42 @@ public class ProductCategory extends JFrame implements TableModelListener{
             }
         });
 
-        //TODO: refactor this code with a single populateTable() function
-//        populateSupplierTable2();
-//        populateProductslist();
-        populateProductsTable();
-//        populateDistributionTable();
-//        populateStatementTable(); //customer transactions
-//        populateCustomersTable();
-//        populateSupplyTransactionsTable();
-//        populateUsersTable();
-//        populateRefundsTable();
-//        populateSettingsTable();
-        //populateStockTable2();
+//        customerStatementTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
+//            @Override
+//            public Component getTableCellRendererComponent(JTable table,
+//                                                           Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+//
+//                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+//
+//
+//                TableModel model = customerStatementTable.getModel();
+//                String transactionType =(String)model.getValueAt(row,3);
+//
+//
+//                if (transactionType.equals("Del")) {
+//                    setBackground(Color.ORANGE);
+//                    setForeground(Color.black);
+//                }else if(row % 2 == 0) {
+//                    setBackground(Color.white);
+//                    setForeground(Color.black);
+//                }else {
+//                    setBackground(new Color(242,242,242));
+//                    setForeground(table.getForeground());
+//                }
+//                return this;
+//            }
+//        });
 
-//        stockTable.getColumnModel().getColumn(0).setPreferredWidth(50);
-//        stockTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+        //TODO: refactor this code with a single populateTable() function
+
+        populateProductsTable();
+
 
           populateCategoriesListBox();
 
-
-//        locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
-
         supplierTransactionsTable.getSelectionModel().addListSelectionListener(new SupplierTransactionTableRowListener());
+        refundsTable.getSelectionModel().addListSelectionListener(new ReturnsTableRowListener() );
+
 
         //https://stackoverflow.com/questions/14852719/double-click-listener-on-jtable-in-java
         distributionTable.addMouseListener(new MouseAdapter() {
@@ -539,12 +577,12 @@ public class ProductCategory extends JFrame implements TableModelListener{
                     TableModel model = table.getModel();
                     int productId = (int)model.getValueAt(row,0);
                     String productName = (String)model.getValueAt(row,1);
-                    Distributor distributor = new Distributor(productId,serverIp);
+                    Distributor distributor = new Distributor(productId,loggedInUser,serverIp);
                     distributor.setProductName(productName);
 
-                    DistributeDialog distributionDialog = new DistributeDialog(topFrame, "Distribution" + " - "
+                    DistributeDialog distributionDialog = new DistributeDialog(topFrame, "Distribution and Adjustment" + " - "
                             + distributor.getProductName(),
-                            distributor,stockItemsEventList,serverIp);
+                            distributor,stockItemsEventList,loggedInUser, serverIp);
                     distributionDialog.setVisible(true);
 
                     populateDistributionTable();
@@ -737,26 +775,33 @@ public class ProductCategory extends JFrame implements TableModelListener{
                         salesPanel.setVisible(false);
                         salesPanel.setVisible(true);
 
-                        salesTable.getColumnModel().getColumn(0).setPreferredWidth(200); // productname
-                        salesTable.getColumnModel().getColumn(1).setPreferredWidth(50);  // quantity
-                        salesTable.getColumnModel().getColumn(2).setPreferredWidth(50);
+                        salesTable.getColumnModel().getColumn(1).setPreferredWidth(200); // productname
+                        salesTable.getColumnModel().getColumn(2).setPreferredWidth(50);  // quantity
                         salesTable.getColumnModel().getColumn(3).setPreferredWidth(50);
                         salesTable.getColumnModel().getColumn(4).setPreferredWidth(50);
                         salesTable.getColumnModel().getColumn(5).setPreferredWidth(50);
+                        salesTable.getColumnModel().getColumn(6).setPreferredWidth(50);
 
                     }else if(summaryRadioButton.isSelected()){
                         //show summary view
                         if(productsSalesComboBox.getSelectedIndex() == -1){
                             productsSalesComboBox.setSelectedIndex(0);
                         }
+
+                        String startDate = startDatePicker.getValue().toString();
+                        String stopDate = stopDatePicker.getValue().toString();
+                        Double deletedSalesTotal = 0.0;
+
                         Product product = (Product)productsSalesComboBox.getSelectedItem();
                         ArrayList<Item> items = null;
                         if(product.getProductName() !=null){
-                            items = mAcess.getItemsSoldSummary(startDatePicker.getValue().toString(),
-                                    stopDatePicker.getValue().toString(),product.getProductId() );
+                            items = mAcess.getItemsSoldSummary(startDate,
+                                    stopDate,product.getProductId() );
+                            deletedSalesTotal = mAcess.getDeletedSalesTotal(startDate,stopDate,product.getProductId());
                         }else {
-                            items = mAcess.getItemsSoldSummary(startDatePicker.getValue().toString(),
-                                    stopDatePicker.getValue().toString());
+                            items = mAcess.getItemsSoldSummary(startDate,
+                                    stopDate);
+                            deletedSalesTotal = mAcess.getDeletedSalesTotal(startDate,stopDate);
                         }
 
 
@@ -772,6 +817,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
                         }
                         totalSalesformattedTextField.setValue(totalSales);
                         marginformattedTextField.setValue(totalMargin);
+                        deletedSalesFormattedTextField.setValue(deletedSalesTotal);
                         salesTable.setModel(new ItemsTableModel(items2D, salesSummaryTableColumnNames));
                         JScrollPane scrollPane = new JScrollPane(salesTable);
                         salesPanel.removeAll();
@@ -916,30 +962,37 @@ public class ProductCategory extends JFrame implements TableModelListener{
             @Override
             public void actionPerformed(ActionEvent e) {
 
+
                 int n = JOptionPane.showConfirmDialog(null,
-                        "This Action can not be reversed. Do you want to continue?",
+                        "This Action can not be reversed.\n " +
+                                "Statement for registered customer(s) will be changed." +
+                                "\n Do you want to continue?",
                         "Warning", JOptionPane.YES_NO_OPTION);
+
                 if (n == JOptionPane.YES_OPTION) {
                     int[] selectedRows = salesTable.getSelectedRows();
                     int [] itemIds = new int [selectedRows.length];
-                    for(int i=0; i<selectedRows.length; i++){
-                        itemIds[i] = (int) salesTable.getModel().getValueAt(i,9);
-                    }
 
+                    ArrayList<Item> items = new ArrayList<>();
+                    for(int i=0; i<selectedRows.length; i++){
+                        int itemId = (int) salesTable.getModel().getValueAt(selectedRows[i],0);
+                        Item item = new Item();
+                        item.setTransactionId(itemId);
+                        item.setProductId((int) salesTable.getModel().getValueAt(selectedRows[i],12));
+                        item.setQuantity((Double) salesTable.getModel().getValueAt(selectedRows[i],2));
+                        item.setPrice((Double) salesTable.getModel().getValueAt(selectedRows[i],3));
+                        item.setTotalPrice((Double) salesTable.getModel().getValueAt(selectedRows[i],4));
+                        item.setInvoiceNumber((int) salesTable.getModel().getValueAt(selectedRows[i],6));
+                        item.setMargin((Double) salesTable.getModel().getValueAt(selectedRows[i],5));
+                        item.setTime((String) salesTable.getModel().getValueAt(selectedRows[i],11));
+                        items.add(item);
+                    }
                     try {
-                        mAcess.deleteSales(itemIds);
+                        mAcess.deleteSales(items,loggedInUser);
                         populateDetailedSalesTable();
                     } catch (Exception e1) {
                         e1.printStackTrace();
                     }finally {
-//                        ((ItemsTableModel) salesTable.getModel()).clearTable();
-//                        try {
-//                            populateDetailedSalesTable();
-//                        } catch (SQLException e1) {
-//                            e1.printStackTrace();
-//                        } catch (ClassNotFoundException e1) {
-//                            e1.printStackTrace();
-//                        }
                     }
                 }
 
@@ -1038,11 +1091,10 @@ public class ProductCategory extends JFrame implements TableModelListener{
             public void actionPerformed(ActionEvent e) {
 
 
-                AddItemsDialog addItemsDialog = new AddItemsDialog(eventListSuppliers, products,serverIp);
-                addItemsDialog.setMinimumSize(new Dimension(700, 450));
+                AddItemsDialog addItemsDialog = new AddItemsDialog(eventListSuppliers, products,
+                        settingsParser.getDefaultStockDestination(),stockItemsEventList,loggedInUser,serverIp);
+                addItemsDialog.setMinimumSize(new Dimension(700, 600));
                 addItemsDialog.setVisible(true);
-
-
 
 
 
@@ -1064,7 +1116,7 @@ public class ProductCategory extends JFrame implements TableModelListener{
         adjustStockButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                StockAdjustmentDialog stockAdjustmentDialog = new StockAdjustmentDialog("ibalihikya",
+                StockAdjustmentDialog stockAdjustmentDialog = new StockAdjustmentDialog(loggedInUser,
                         eventListProducts,stockItemsEventList,serverIp);
                 stockAdjustmentDialog.setVisible(true);
                 populateDistributionTable();
@@ -1157,16 +1209,16 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
             }
         });
-        unpackButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                SplitterDialog splitterDialog = new SplitterDialog(serverIp);
-                splitterDialog.setMinimumSize(new Dimension(500, 300));
-                splitterDialog.setVisible(true);
-                populateStockTable2(getSockItems());
-                populateDistributionTable();
-            }
-        });
+//        unpackButton.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                SplitterDialog splitterDialog = new SplitterDialog(serverIp);
+//                splitterDialog.setMinimumSize(new Dimension(500, 300));
+//                splitterDialog.setVisible(true);
+//                populateStockTable2(getSockItems());
+//                populateDistributionTable();
+//            }
+//        });
         registerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -1246,9 +1298,12 @@ public class ProductCategory extends JFrame implements TableModelListener{
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    mAcess.addLocation(new Site(locationTextField.getText()));
-                    locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
-                    resetFormFields(locationPanel);
+                    String location = locationTextField.getText();
+                    if(location.length()>0) {
+                        mAcess.addLocation(new Site(locationTextField.getText()));
+                        locationsList.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+                        resetFormFields(locationPanel);
+                    }
 
                 } catch (Exception e1) {
                     e1.printStackTrace();
@@ -1312,7 +1367,6 @@ public class ProductCategory extends JFrame implements TableModelListener{
                     case 2:
                         if(tab2Loaded==false){
                             populateDistributionTable();
-                            populateRefundsTable();
                             populateStockTable2(getSockItems());
                             stockTable.getColumnModel().getColumn(0).setPreferredWidth(50);
                             stockTable.getColumnModel().getColumn(1).setPreferredWidth(250);
@@ -1342,12 +1396,18 @@ public class ProductCategory extends JFrame implements TableModelListener{
                         break;
                     case 6:
                         if(tab6Loaded==false){
-                            populateUsersTable();
+                            populateRefundsTable();
                             tab6Loaded=true;
                         }
                         break;
                     case 7:
                         if(tab7Loaded==false){
+                            populateUsersTable();
+                            tab6Loaded=true;
+                        }
+                        break;
+                    case 8:
+                        if(tab8Loaded==false){
                             populateSettingsTable();
                             tab7Loaded=true;
                         }
@@ -1440,6 +1500,27 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
 
 
+            }
+        });
+        refreshButton1.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                populateDistributionTable();
+                populateStockTable2(getSockItems());
+            }
+        });
+        refreshReturnsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                populateRefundsTable();
+            }
+        });
+        viewDeletedSalesButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                DeletedSalesView dialog = new DeletedSalesView(serverIp);
+                dialog.setMinimumSize(new Dimension(700, 600));
+                dialog.setVisible(true);
             }
         });
     }
@@ -1727,16 +1808,15 @@ public class ProductCategory extends JFrame implements TableModelListener{
         };
 
         String[] refundsTableColumnNames = {
-                "No.","Amount","Comment","Date"};
+                "No.","Cash Refund","receipt_no","Grand Total","cashier","Comment","Date"};
 
-        String [] refundsPropertyNames = {"id","amount","comment","datePaid"};
+        String [] refundsPropertyNames = {"id","amount","receipt_no","grandTotal", "username","comment","datePaid"};
 
-        boolean [] editable = {false,false, false, false};
+        boolean [] editable = {false,false, false,false,false, false,false};
 
         TableFormat tableFormat = GlazedLists.tableFormat(Refund.class, refundsPropertyNames, refundsTableColumnNames,
                 editable);
-//        populateFilterableTable(refundsTable,refunds,
-//                refundFilterator,refund,tableFormat);
+
 
         EventList eventList = new BasicEventList();
         eventList.addAll(refunds);
@@ -1745,7 +1825,6 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
     private void populateSettingsTable() {
 
-
         String[] columnNames = {"Setting", "Value"};
 
         String [][] settings = {{"Business name", settingsParser.getBusinessName()},
@@ -1753,7 +1832,10 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 {"Phone 1", settingsParser.getPhone1()},
                 {"Phone 2", settingsParser.getPhone2()},
                 {"TIN", settingsParser.getTin()},
-                {"Server Ip", settingsParser.getServerIp()}};
+                {"Server Ip", settingsParser.getServerIp()},
+
+                //{"default_stock_destination", default_destination.getName() }
+    };
         SettingsTableModel settingsTableModel = new SettingsTableModel(settings, columnNames);
 
         settingsTable.setModel(settingsTableModel);
@@ -1881,6 +1963,8 @@ public class ProductCategory extends JFrame implements TableModelListener{
     }
 
 
+
+
     //populates the customer statement table
     private void populateStatementTable() {
         ArrayList<CustomerStatement> customerStatements = getCustomerStatements();
@@ -1907,6 +1991,8 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 editable);
         populateFilterableTable(customerStatementTable,customerStatements,
                 statementsFilterator,statementFilterTextField,tableFormat);
+
+        customerStatementTable.getColumnModel().getColumn(3).setCellRenderer(new CustomerStatementTableCellRenderer());
     }
 
 
@@ -1980,13 +2066,19 @@ public class ProductCategory extends JFrame implements TableModelListener{
             productsSalesComboBox.setSelectedIndex(0);
         }
         Product product = (Product)productsSalesComboBox.getSelectedItem();
-        ArrayList<Item> items = null;
+        ArrayList<Item> items = new ArrayList<>();
+
+        String startDate = startDatePicker.getValue().toString();
+        String stopDate = stopDatePicker.getValue().toString();
+        Double deletedSalesTotal = 0.0;
         if(product.getProductName() !=null){
-            items = mAcess.getItemsSold(startDatePicker.getValue().toString(),
-                    stopDatePicker.getValue().toString(),product.getProductId() );
+            items = mAcess.getItemsSold(startDate,stopDate
+                    ,product.getProductId() );
+            deletedSalesTotal = mAcess.getDeletedSalesTotal(startDate,stopDate,product.getProductId());
         }else {
-            items = mAcess.getItemsSold(startDatePicker.getValue().toString(),
-                    stopDatePicker.getValue().toString());
+            items = mAcess.getItemsSold(startDate,
+                    stopDate);
+            deletedSalesTotal = mAcess.getDeletedSalesTotal(startDate,stopDate);
         }
         Object[][] items2D = new Object[items.size()][];
         int i = 0;
@@ -2001,10 +2093,11 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
         salesTable.setModel(new ItemsTableModel(items2D, salesTableColumnNames));
         TableColumnModel columnModel = salesTable.getColumnModel();
-        columnModel.removeColumn(columnModel.getColumn(9)); // hide the transactionid
+        columnModel.removeColumn(salesTable.getColumnModel().getColumn(12)); //hide productid
 
         totalSalesformattedTextField.setValue(totalSales);
         marginformattedTextField.setValue(totalmargin);
+        deletedSalesFormattedTextField.setValue(deletedSalesTotal);
     }
 
 
@@ -2281,6 +2374,16 @@ public class ProductCategory extends JFrame implements TableModelListener{
         ArrayList<Item> items = new ArrayList<>();
         try {
             items = mAcess.getSuppliedItems(transactionId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    private ArrayList<Item> getReturnedItems(int returnId) {
+        ArrayList<Item> items = new ArrayList<>();
+        try {
+            items = mAcess.getReturnDetails(returnId);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -2731,17 +2834,34 @@ public class ProductCategory extends JFrame implements TableModelListener{
         EventList eventList = new BasicEventList();
         eventList.addAll(receipts);
 
-        String [] receiptColumLabels = {"Receipt no.","Cash Received", "Change", "Invoice no.", "Balance", "Till" ,
-                "Cashier","Date" };
-        String [] receiptPropertyNames = {"receiptId", "cashReceived", "change", "invoice_id", "balance", "tillnumber",
+        String [] receiptColumLabels = {"Receipt no.","Cash Received", "Change", "Invoice no.","Inv_Date", "Balance", "Till" ,
+                "Cashier","Rec_Date" };
+        String [] receiptPropertyNames = {"receiptId", "cashReceived", "change", "invoice_id","invoice_date_created", "balance", "tillnumber",
                 "cashierName", "date_created"};
-        boolean [] editable = {false,false, false,false,false, false,false,false};
+        boolean [] editable = {false,false, false,false,false,false, false,false,false};
 
         TableFormat tableFormat = GlazedLists.tableFormat(Receipt.class, receiptPropertyNames, receiptColumLabels,
                 editable);
         receiptsTable.setModel(new EventTableModel(eventList,tableFormat));
         //receiptsTable.getColumnModel().removeColumn(receiptsTable.getColumnModel().getColumn(4)); //hide invoice no
-        receiptsTable.getColumnModel().removeColumn(receiptsTable.getColumnModel().getColumn(4)); //hide balance
+        receiptsTable.getColumnModel().removeColumn(receiptsTable.getColumnModel().getColumn(5)); //hide balance
+
+        ArrayList<Integer>deletedInvoices = new ArrayList<>();
+
+        try {
+            deletedInvoices = mAcess.getDeletedInvoices();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        receiptsTable.getColumnModel().getColumn(0).setCellRenderer(new HiglightReceiptTableCellRenderer(deletedInvoices));
+        receiptsTable.getColumnModel().getColumn(3).setCellRenderer(new HiglightReceiptTableCellRenderer(deletedInvoices));
+        receiptsTable.getColumnModel().getColumn(4).setCellRenderer(new DateTableCellRenderer());
+        receiptsTable.getColumnModel().getColumn(7).setCellRenderer(new DateTableCellRenderer());
+
+
     }
 
     private ArrayList<Receipt> getReceipts(Query query) {
@@ -2815,6 +2935,8 @@ public class ProductCategory extends JFrame implements TableModelListener{
         });
     }
 
+
+
     public static void main(String[] args) {
         //UIManager.put("nimbusBlueGrey", new Color(242,242,242));
         try {
@@ -2834,6 +2956,10 @@ public class ProductCategory extends JFrame implements TableModelListener{
                 init();
             }
         });
+
+        loggedInUser=args[0];
+        System.out.println(loggedInUser);
+
 
     }
 
@@ -2870,6 +2996,103 @@ public class ProductCategory extends JFrame implements TableModelListener{
 
 
         }
+    }
+
+    //TODO: merge these 3 renderers into 1
+    //chages font color to red in receipts table when the invoice date is different from receipt date
+    public class DateTableCellRenderer extends DefaultTableCellRenderer {
+
+        public DateTableCellRenderer() {
+            //setHorizontalAlignment(JLabel.RIGHT);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            if (value instanceof Number) {
+                value = NumberFormat.getNumberInstance().format(value);
+            }
+
+            String inv_date = ((String)table.getModel().getValueAt(row, 4)).substring(0,11);
+            String rec_date = ((String)table.getModel().getValueAt(row, 8)).substring(0,11);
+
+
+
+
+            if (!inv_date.equals(rec_date)) {
+                //setBackground(Color.ORANGE);
+                setForeground(Color.red);
+            }
+            else {
+//                if (row % 2 == 0) {
+//                    setBackground(tableEvenRowColor);
+//                    setForeground(primaryTextColor);
+//                }
+//                else {
+//                    setBackground(Color.white);
+//                    setForeground(table.getForeground());
+//                }
+                setForeground(table.getForeground());
+            }
+            return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        }
+
+    }
+
+    //chages font color  in receipts table when the items have been deleted from invoice
+    public class HiglightReceiptTableCellRenderer extends DefaultTableCellRenderer {
+
+        private ArrayList<Integer>deletedInvoices = new ArrayList<>();
+
+        public HiglightReceiptTableCellRenderer(ArrayList<Integer>deletedInvoices) {
+            //setHorizontalAlignment(JLabel.RIGHT);
+            this.deletedInvoices=deletedInvoices;
+
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+//            if (value instanceof Number) {
+//                value = NumberFormat.getNumberInstance().format(value);
+//            }
+
+
+            Integer invoiceId = (Integer)table.getModel().getValueAt(row, 3);
+
+           if(deletedInvoices.contains(invoiceId)){
+                setForeground(Color.MAGENTA);
+           } else {
+                setForeground(table.getForeground());
+            }
+            return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        }
+
+    }
+
+    //chages font color to red in customer statement table when transaction type is Del
+    public class CustomerStatementTableCellRenderer extends DefaultTableCellRenderer {
+
+        public CustomerStatementTableCellRenderer() {
+            //setHorizontalAlignment(JLabel.RIGHT);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            if (value instanceof Number) {
+                value = NumberFormat.getNumberInstance().format(value);
+            }
+
+            String type = (String)table.getModel().getValueAt(row, 3);
+
+            if (type.equals("Del")) {
+                setForeground(Color.red);
+            }
+            else {
+
+                setForeground(table.getForeground());
+            }
+            return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        }
+
     }
 
     private class StockTableRowListener implements ListSelectionListener {
@@ -2929,6 +3152,47 @@ public class ProductCategory extends JFrame implements TableModelListener{
         }
     }
 
+    private void populateReturnDetailsTable(int returnId) {
+        ArrayList<Item> items = getReturnedItems(returnId);
+        String [] itemColumLabels = {"No", "Product", "Quantity", "Price", "Total"};
+        String [] itemPropertyNames = {"transactionId","productName", "quantity", "price", "totalPrice"};
+
+        TableFormat tableFormat = GlazedLists.tableFormat(Item.class, itemPropertyNames, itemColumLabels);
+
+        EventList eventList = new BasicEventList();
+        eventList.addAll(items);
+        returnDetailsTable.setModel(new DefaultEventTableModel(eventList,tableFormat));
+
+    }
+
+    private class ReturnsTableRowListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+
+            int row = refundsTable.getSelectedRow();
+            try {
+                //TODO: -1 is used to prevent arrayout of bounds exception when createItemSuppliedTableModelListener() calls the populateSupplyTransactionsTable();
+                //TODO: the cleaner way to refresh the supplierTransactions table is to update the arraylist used to populate it.
+                if(row !=-1) {
+                    int returnId = (int) refundsTable.getModel().getValueAt(row, 0);
+                    populateReturnDetailsTable(returnId);
+                }
+            }catch (ArrayIndexOutOfBoundsException e1){
+                e1.printStackTrace();
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }finally {
+                System.out.println(row);
+            }
+        }
+    }
+
+
+
+
     private class SupplierTransactionTableRowListener implements ListSelectionListener {
         @Override
         public void valueChanged(ListSelectionEvent e) {
@@ -2952,8 +3216,6 @@ public class ProductCategory extends JFrame implements TableModelListener{
             }finally {
                 System.out.println(row);
             }
-
-
         }
     }
 

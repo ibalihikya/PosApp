@@ -6,7 +6,7 @@
     <rowspec value="center:18px:noGrow"/>
     <colspec value="fill:643px:grow"/>
     <constraints>
-      <xy x="20" y="20" width="643" height="404"/>
+      <xy x="20" y="20" width="643" height="413"/>
     </constraints>
     <properties/>
     <border type="none"/>
@@ -128,6 +128,17 @@
                 <properties/>
               </component>
               <component id="3b477" class="javax.swing.JButton" binding="reprintButton">
+                <constraints/>
+                <properties>
+                  <label value=""/>
+                  <text value=""/>
+                </properties>
+              </component>
+              <component id="dad3f" class="javax.swing.JToolBar$Separator">
+                <constraints/>
+                <properties/>
+              </component>
+              <component id="655ad" class="javax.swing.JButton" binding="returnsButton">
                 <constraints/>
                 <properties>
                   <label value=""/>

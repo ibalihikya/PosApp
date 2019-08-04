@@ -1,26 +1,29 @@
 package admin_ui;
 
+import Utilities.SettingsParser;
 import ca.odell.glazedlists.EventList;
 import ca.odell.glazedlists.TextFilterator;
 import ca.odell.glazedlists.matchers.TextMatcherEditor;
 import ca.odell.glazedlists.swing.AutoCompleteSupport;
-import model.Item;
-import model.Product;
-import model.Supplier;
-import model.Transaction;
+import model.*;
 import model.databaseUtility.MySqlAccess;
 import model.databaseUtility.SqlStrings;
 import sell_ui.DoubleEditor;
 import sell_ui.ItemsTableModel;
 import sell_ui.ProductDialog;
+import sell_ui.UI;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.TableColumnModel;
+import javax.swing.text.DefaultFormatterFactory;
+import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.*;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.SQLException;
+import java.text.NumberFormat;
 import java.util.Vector;
 
 public class AddItemsDialog extends JDialog {
@@ -35,10 +38,19 @@ public class AddItemsDialog extends JDialog {
     private JComboBox supplierComboBox;
     private JButton addItemButton;
     private JButton removeItemButton;
+    private JComboBox defaultComboBox;
+    private JButton editButton;
+    private JFormattedTextField grandTotalFormattedTextField;
+    private JFormattedTextField amountPaidFormattedTextField;
+    private JPanel defaultSettingsPanel;
     private int rowNumber = 0;
     private final ItemsTableModel itemsTableModel;
     private Transaction transaction;
     private static MySqlAccess mAcess;
+    private String serverIP;
+    //private double grandTotal = 0.0;
+    private String loggedinUser;
+    private static NumberFormat doubleFormat;
 
     private String[] itemsTableColumnNames = {"No.",
             "Product",
@@ -48,13 +60,24 @@ public class AddItemsDialog extends JDialog {
             "Total Price",
             "product id"};
 
-    public AddItemsDialog(EventList suppliers, EventList products, String serverIp) {
+    public AddItemsDialog(EventList suppliers, EventList products,int defaultStockDestination, EventList stockItems, String loggedinUser, String serverIp) {
         setContentPane(contentPane);
         setModal(true);
         getRootPane().setDefaultButton(buttonOK);
         setTitle("Receive Goods");
 
+        doubleFormat = NumberFormat.getNumberInstance();
+        NumberFormatter doubleFormatter = new NumberFormatter(doubleFormat);
+        doubleFormatter.setFormat(doubleFormat);
+
+        amountPaidFormattedTextField.setFormatterFactory(
+                new DefaultFormatterFactory(doubleFormatter));
+
         mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME,serverIp);
+        this.serverIP=serverIp;
+        this.loggedinUser=loggedinUser;
+
+        grandTotalFormattedTextField.setEditable(false);
 
         ImageIcon addItemIcon = createImageIcon("/images/ic_add_green_18dp.png", "Add Item");
         ImageIcon removeIcon = createImageIcon("/images/ic_remove_black_18dp.png", "Remove Item");
@@ -78,8 +101,15 @@ public class AddItemsDialog extends JDialog {
         additemsTable.getColumnModel().getColumn(2).setCellEditor(new DoubleEditor(0.0, 1000000.0));
         additemsTable.setRowHeight(25);
 
-
-
+        defaultComboBox.setModel(new DefaultComboBoxModel(mAcess.getLocations().toArray()));
+        try {
+            defaultComboBox.setSelectedItem(mAcess.getLocation(defaultStockDestination));
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        defaultComboBox.setEnabled(false);
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -106,13 +136,18 @@ public class AddItemsDialog extends JDialog {
                     model.setValueAt(total, row, 5);
                 }
 
-
+                grandTotalFormattedTextField.setValue(computeGrandTotal());
+//                try {
+//                    grandTotalFormattedTextField.commitEdit();
+//                } catch (ParseException e1) {
+//                    e1.printStackTrace();
+//                }
             }
         });
 
         buttonOK.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                onOK();
+                onOK(stockItems);
             }
         });
 
@@ -144,8 +179,10 @@ public class AddItemsDialog extends JDialog {
                 productsDialog.setVisible(true);
                 Product product = productsDialog.getSelectedProduct();
 
-                if(product !=null)
+                if(product !=null) {
                     addItemToTable(product);
+                }
+
                 else {
                     return;
                 }
@@ -166,7 +203,8 @@ public class AddItemsDialog extends JDialog {
         });
 
         pack();
-        setLocationRelativeTo(null);
+        //setLocationRelativeTo(null);
+        setLocation(new Point(300,30));
         removeItemButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -197,18 +235,120 @@ public class AddItemsDialog extends JDialog {
             }
         });
 
-    }
+        editButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                defaultComboBox.setEnabled(true);
 
-    private void onOK() {
-        if(additemsTable.getRowCount()>0){
-            try {
-                submitInvoice();
-              }catch (Exception e1){
-                e1.printStackTrace();
+            }
+        });
+        defaultComboBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                defaultComboBox.setEnabled(false);
+                Site defaultStockDestination = (Site)defaultComboBox.getSelectedItem();
+                SettingsParser settingsParser = new SettingsParser("settings.xml");
+                settingsParser.setDefaultStockDestination(defaultStockDestination.getId());
+
+            }
+        });
+        amountPaidFormattedTextField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                super.keyTyped(e);
             }
 
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+
+                if(e.getKeyCode()==KeyEvent.VK_ESCAPE){
+                    KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+                    amountPaidFormattedTextField.setValue(null);
+                    amountPaidFormattedTextField.setFocusable(false);
+                    fm.getActiveWindow().requestFocusInWindow();
+
+
+                }
+
+                double cash = 0.0;
+
+                if(!amountPaidFormattedTextField.getText().isEmpty()) {
+                    cash = (double) UI.getFormattedTextFieldValue(amountPaidFormattedTextField);
+                }
+
+                if(cash>0.0) {
+                    amountPaidFormattedTextField.setText(String.format("%,.0f", cash));
+                }
+            }
+        });
+    }
+
+    private void onOK(EventList stockItems) {
+        if(additemsTable.getRowCount()>0){
+            try {
+
+                Double amountPaid=0.0;
+
+                if(amountPaidFormattedTextField.getText().length()>0)
+                    amountPaid = (Double)UI.getFormattedTextFieldValue(amountPaidFormattedTextField);
+
+                Double grandTotal = (Double) grandTotalFormattedTextField.getValue();
+                if(grandTotal<amountPaid){
+                    JOptionPane.showMessageDialog(null,"Amount to pay should not be more than Total",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }else{
+                    submitInvoice(stockItems);
+                    if(amountPaid>0.0)
+                        paySupplier(amountPaid);
+
+                }
+
+//                if(!amountPaidFormattedTextField.getText().equals(""))
+//                    amountPaid = (Double)UI.getFormattedTextFieldValue(amountPaidFormattedTextField);
+
+            }catch (Exception e1){
+                e1.printStackTrace();
+            }
         }
         dispose();
+    }
+
+    private void paySupplier(Double amount) {
+        try {
+            Supplier supplier = (Supplier)supplierComboBox.getSelectedItem();
+            int supplierId = supplier.getId();
+            Payment payment = new Payment();
+            //Double amount = (Double)UI.getFormattedTextFieldValue(amountPaidFormattedTextField);;
+            //Double grandTotal = (Double) grandTotalFormattedTextField.getValue();
+//            if(grandTotal<amount){
+//                JOptionPane.showMessageDialog(null,"Amount to pay should not be more than Total",
+//                        "Error", JOptionPane.ERROR_MESSAGE);
+//                return;
+//            }
+//            else {
+//                payment.setAmount(amount);
+//                payment.setDescription("");
+//                payment.setSupplier_id(supplierId);
+//                payment.setPaymentType("p");
+//                mAcess.submitPayment(payment);
+//            }
+
+            payment.setAmount(amount);
+            payment.setDescription("");
+            payment.setSupplier_id(supplierId);
+            payment.setPaymentType("p");
+            mAcess.submitPayment(payment);
+        } catch (Exception e1) {
+            e1.printStackTrace();
+            return;
+        }
+
     }
 
     private void onCancel() {
@@ -216,6 +356,15 @@ public class AddItemsDialog extends JDialog {
         resetFormFields(topRightPanel);
         dispose();
     }
+
+    private Double computeGrandTotal(){
+        Double gtotal = 0.0;
+        for( Vector<Object> row : (Vector<Vector<Object>>)itemsTableModel.getData()){
+            gtotal += (Double) row.elementAt(5);
+        }
+        return  gtotal;
+    }
+
 
     private void resetFormFields(JPanel panel){
         for(Component control : panel.getComponents())
@@ -239,7 +388,7 @@ public class AddItemsDialog extends JDialog {
         }
     }
 
-    private void submitInvoice() {
+    private void submitInvoice(EventList stockItems) {
         try {
             Supplier supplier = (Supplier)supplierComboBox.getSelectedItem();
             transaction = new Transaction(supplier.getId());
@@ -254,14 +403,22 @@ public class AddItemsDialog extends JDialog {
                 double price = (Double) row.elementAt(4);
                 item.setPrice(price);
                 item.setProductId((int)row.elementAt(6));
-                //item.setTotalPrice((Double)row.elementAt(5));
-                //item.computeTotalPrice();
                 item.setTotalPrice(quantity*price);
                 item.setInvoiceNumber(Integer.parseInt(invoiceTextField.getText()));
                 transaction.addItem(item);
             }
             mAcess.insertDelivery(transaction);
-            ((ItemsTableModel) additemsTable.getModel()).clearTable();
+            Site default_stock_destination = (Site)defaultComboBox.getSelectedItem();
+            if(default_stock_destination.getId()!=1){//if default destination is not receiving center, transfer the stock from receiving center
+                                                     // to the given default destination
+                for(Item item : transaction.getItems()){
+                    Distributor distributor = new Distributor(item.getProductId(),loggedinUser,serverIP);
+                    distributor.transfer(new Site(1),default_stock_destination,stockItems,item.getQuantity());
+                }
+
+            }
+            //((ItemsTableModel) additemsTable.getModel()).clearTable();
+
         }
         catch (Exception e1) {
             e1.printStackTrace();
@@ -298,8 +455,8 @@ public class AddItemsDialog extends JDialog {
 
 
 
-            //grandTotal += totalPrice;
-            //totalFormattedTextField.setValue(grandTotal);
+//            grandTotal += totalPrice;
+//            grandTotalFormattedTextField.setValue(grandTotal);
         }catch (NullPointerException ex){
             System.out.println("NullPointerException: product not selected!");
 

@@ -24,6 +24,7 @@ public class SettingsParser {
     private Document doc;
     private File inputFile;
     private String serverIp;
+    private int default_stock_destination; //where stock received is initially stored
 
     public SettingsParser(String settingsFilePath) {
         try {
@@ -84,6 +85,11 @@ public class SettingsParser {
                             .getElementsByTagName("server_ip")
                             .item(0)
                             .getTextContent();
+
+                    default_stock_destination = Integer.parseInt(eElement
+                            .getElementsByTagName("default_stock_destination")
+                            .item(0)
+                            .getTextContent());
                 }
             }
 
@@ -174,5 +180,14 @@ public class SettingsParser {
     public void setTillNumber(int till_no) {
         updateSettings("header","till_no", Integer.toString(till_no));
     }
+
+    public int getDefaultStockDestination() {
+        return default_stock_destination;
+    }
+
+    public void setDefaultStockDestination(int default_stock_destination) {
+        updateSettings("server","default_stock_destination", Integer.toString(default_stock_destination));
+    }
+
 }
 

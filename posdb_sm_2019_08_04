@@ -1,0 +1,2059 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 10.4
+-- Dumped by pg_dump version 10.4
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+
+
+--
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+
+
+--
+-- Name: add_product_to_distribution_table(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_product_to_distribution_table() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+   BEGIN
+IF(TG_OP = 'INSERT') THEN
+insert into distribution (product_id) values (NEW.productid);
+insert into stock (productid, quantity,location_id, direction,source_dest_id) values (NEW.productid,0,2,'in',2);
+RETURN NEW;
+END IF;
+END;
+$$;
+
+
+ALTER FUNCTION public.add_product_to_distribution_table() OWNER TO postgres;
+
+--
+-- Name: changestock(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.changestock() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+loc varchar(15);
+shop_delta double precision;
+rc_delta double precision;
+store_delta double precision;
+src_dest varchar(15); 
+BEGIN
+shop_delta = OLD.shop_qty - NEW.shop_qty;
+rc_delta = OLD.rec_center_qty - NEW.rec_center_qty;
+store_delta = OLD.store_qty - NEW.store_qty;
+
+IF(shop_delta>0 AND store_delta <0 ) THEN
+loc = 'shop';
+src_dest = 'store';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, shop_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, shop_delta, 'in',loc);
+RETURN NEW;
+ELSIF(shop_delta>0 AND rc_delta <0) THEN
+loc = 'shop';
+src_dest = 'rec_center';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, shop_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, shop_delta, 'in',loc);
+RETURN NEW;
+ELSIF(rc_delta>0 AND shop_delta < 0 ) THEN
+loc = 'rec_center';
+src_dest = 'shop';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, rc_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, rc_delta, 'in',loc);
+RETURN NEW;
+ELSIF(rc_delta>0 AND store_delta < 0 ) THEN
+loc = 'rec_center';
+src_dest = 'store';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, rc_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, rc_delta, 'in',loc);
+RETURN NEW;
+ELSIF(store_delta>0 AND shop_delta < 0) THEN
+loc = 'store';
+src_dest = 'shop';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, store_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, store_delta, 'in',loc);
+RETURN NEW;
+ELSIF(store_delta>0 AND rc_delta < 0) THEN
+loc = 'store';
+src_dest = 'rec_center';
+insert into stock (location, productid, quantity, direction, source_dest ) values (loc, NEW.product_id, store_delta, 'out',src_dest);
+insert into stock (location, productid, quantity, direction, source_dest ) values (src_dest, NEW.product_id, store_delta, 'in',loc);
+RETURN NEW;
+ELSE
+    RETURN NEW;
+END IF;
+   END
+$$;
+
+
+ALTER FUNCTION public.changestock() OWNER TO postgres;
+
+--
+-- Name: compute_margin(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.compute_margin() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+   NEW.margin = NEW.price - NEW.costprice;
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.compute_margin() OWNER TO postgres;
+
+--
+-- Name: compute_total_price(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.compute_total_price() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+   NEW.total = NEW.price * NEW.quantity;
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.compute_total_price() OWNER TO postgres;
+
+--
+-- Name: compute_transaction_margin(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.compute_transaction_margin() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+   NEW.margin = NEW.total - (SELECT costprice from product WHERE productid = NEW.productid) * NEW.quantity;
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.compute_transaction_margin() OWNER TO postgres;
+
+--
+-- Name: decrease_invoice_amount(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.decrease_invoice_amount() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+   customer_balance double precision;
+   cus_id integer;
+   rec_id integer;
+   rec_bal double precision;
+   BEGIN   
+
+   
+select customer_id INTO cus_id from invoice where id = OLD.invoice_id; 
+   
+select balance INTO customer_balance from customer_statement where customer_id = cus_id
+order by date_entered desc limit 1; 
+
+select id INTO rec_id from receipt where invoice_id= OLD.invoice_id ORDER BY date_created DESC limit 1;
+
+IF(customer_balance-OLD.total<=0) THEN
+update invoice set amount = amount - OLD.total, status='paid' where id = OLD.invoice_id; -- to prevent this invoice from appearing in payment dialog
+ELSE
+update invoice set amount = amount - OLD.total where id = OLD.invoice_id;
+
+IF(cus_id!=NULL) THEN
+update receipt set description='item deleted', balance = balance-OLD.total where id = rec_id ;
+ELSE
+update receipt set description='item deleted' where id = rec_id ;
+END IF;
+
+END IF;
+
+RETURN NEW;
+   END
+$$;
+
+
+ALTER FUNCTION public.decrease_invoice_amount() OWNER TO postgres;
+
+--
+-- Name: insert_delivery_amount(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.insert_delivery_amount() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   BEGIN
+  INSERT INTO supply_transactions (supplier_id, product_id, amount, transaction_type) VALUES (NEW.supplier_id, NEW.product_id, NEW.price * NEW.quantity, 'delivery');
+  RETURN NEW;
+   END;
+$$;
+
+
+ALTER FUNCTION public.insert_delivery_amount() OWNER TO postgres;
+
+--
+-- Name: reducebalance(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.reducebalance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   BEGIN
+      UPDATE balance SET balance = balance - NEW.balance WHERE supplier_id = NEW.supplier_id;
+  RETURN NEW;
+   END;
+$$;
+
+
+ALTER FUNCTION public.reducebalance() OWNER TO postgres;
+
+--
+-- Name: reducestock(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.reducestock() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   BEGIN
+  insert into stock (location_id, productid, quantity, direction, source_dest_id ) values (2, NEW.productid,NEW.quantity , 'out',2);
+
+  RETURN NEW;
+   END;
+$$;
+
+
+ALTER FUNCTION public.reducestock() OWNER TO postgres;
+
+--
+-- Name: update_balance(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_balance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+   supplier_balance double precision;
+   BEGIN
+select balance INTO supplier_balance from stransactions where supplier_id = NEW.supplier_id
+  AND id != NEW.id order by date_entered desc limit 1;
+IF(supplier_balance IS NOT NULL) THEN
+	IF( NEW.transaction_type = 'd' ) THEN
+	  UPDATE stransactions SET balance = supplier_balance  + NEW.amount WHERE id = NEW.id;
+	  RETURN NEW;
+	ELSE
+	--do not allow (supplier_balance - NEW.amount) < 0 which will introduce negative balance
+	  IF(supplier_balance >= NEW.amount) THEN
+		UPDATE stransactions SET balance = supplier_balance - NEW.amount WHERE id = NEW.id;
+	  END IF;
+	  RETURN NEW;
+	END IF;
+ELSE
+	IF( NEW.transaction_type = 'd' ) THEN
+	  UPDATE stransactions SET balance =  NEW.amount WHERE id = NEW.id;
+	  RETURN NEW;
+	END IF;
+END IF;
+   END
+$$;
+
+
+ALTER FUNCTION public.update_balance() OWNER TO postgres;
+
+--
+-- Name: update_customer_balance(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_customer_balance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+   customer_balance double precision;
+   payment double precision;
+   statement_no int;
+   BEGIN
+   payment = NEW.cash_received - NEW.change;
+select balance INTO customer_balance from customer_statement where customer_id = NEW.customer_id
+  AND id != NEW.id order by date_entered desc limit 1;
+  
+IF(customer_balance IS NOT NULL AND payment>0) THEN
+IF(NEW.rec_type = 'current') THEN
+insert into customer_statement (customer_id, amount, type, balance) values 
+(NEW.customer_id, payment, 'Rec', customer_balance + NEW.balance) RETURNING id INTO statement_no;
+insert into statement_receipt (statement_id, receipt_id) values (statement_no, NEW.id);
+RETURN NEW;
+ELSE
+insert into customer_statement (customer_id, amount, type, balance) values 
+(NEW.customer_id, payment, 'Rec', customer_balance - payment) RETURNING id INTO statement_no;
+insert into statement_receipt (statement_id, receipt_id) values (statement_no, NEW.id);
+RETURN NEW;
+END IF;
+ELSE
+IF(NEW.customer_id IS NOT NULL) THEN
+insert into customer_statement (customer_id, amount, type, balance) values 
+(NEW.customer_id, payment, 'Rec', NEW.balance) RETURNING id INTO statement_no;
+insert into statement_receipt (statement_id, receipt_id) values (statement_no, NEW.id);
+RETURN NEW;
+ELSE
+insert into customer_statement (amount, type, balance) values 
+(payment, 'Rec', 0.0) RETURNING id INTO statement_no;
+insert into statement_receipt (statement_id, receipt_id) values (statement_no, NEW.id);
+RETURN NEW;
+END IF;
+END IF;
+END
+$$;
+
+
+ALTER FUNCTION public.update_customer_balance() OWNER TO postgres;
+
+--
+-- Name: update_customer_stmt_balance(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_customer_stmt_balance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+   customer_balance double precision;
+   amount_delta double precision;  -- the amount by which the invoice total has changed after deleting an item from the invoice
+   statement_no int; -- the primary key of customer_statement table
+   BEGIN
+IF(TG_OP = 'INSERT') THEN
+select balance INTO customer_balance from customer_statement where customer_id = NEW.customer_id
+AND id != NEW.id order by date_entered desc limit 1;
+
+IF(customer_balance IS NOT NULL) THEN
+insert into customer_statement (customer_id, amount, type, balance) values 
+(NEW.customer_id, NEW.amount, 'Inv', customer_balance + NEW.amount) RETURNING id INTO statement_no;
+
+insert into statement_invoice (statement_id, invoice_id) values (statement_no, NEW.id);
+RETURN NEW;
+ELSE
+IF(NEW.customer_id IS NOT NULL) THEN
+insert into customer_statement (customer_id, amount, type, balance) values 
+(NEW.customer_id, NEW.amount, 'Inv', NEW.amount) RETURNING id INTO statement_no;
+
+insert into statement_invoice (statement_id, invoice_id) values (statement_no, NEW.id);
+RETURN NEW;
+ELSE
+insert into customer_statement (amount, type, balance) values 
+(NEW.amount, 'Inv', 0.0) RETURNING id INTO statement_no;
+
+insert into statement_invoice (statement_id, invoice_id) values (statement_no, NEW.id);
+
+RETURN NEW;
+END IF;
+END IF;
+ELSIF(TG_OP = 'UPDATE' AND (OLD.amount - NEW.amount)>0) THEN -- update statement when an item has been deleted
+amount_delta = OLD.amount - NEW.amount;
+
+select statement_id into statement_no from statement_invoice where invoice_id = NEW.id;
+select balance INTO customer_balance from customer_statement where customer_id = OLD.customer_id 
+order by date_entered desc limit 1; 
+IF(customer_balance IS NOT NULL) THEN 
+    IF(customer_balance-amount_delta>0)THEN
+customer_balance=customer_balance-amount_delta;
+ELSE
+customer_balance=0;
+END IF;
+
+insert into customer_statement (customer_id, amount, type, balance) values 
+(OLD.customer_id, amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
+insert into statement_invoice (statement_id, invoice_id) values (statement_no, OLD.id);
+RETURN NEW;
+ELSE
+select balance INTO customer_balance from customer_statement where id = statement_no ;
+insert into customer_statement (amount, type, balance) values 
+(amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
+RETURN NEW;
+END IF;
+ELSE
+RETURN NEW;
+END IF;
+END 
+$$;
+
+
+ALTER FUNCTION public.update_customer_stmt_balance() OWNER TO postgres;
+
+--
+-- Name: update_dateupdated_column(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_dateupdated_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+   NEW.dateupdated = now(); 
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_dateupdated_column() OWNER TO postgres;
+
+--
+-- Name: update_lastmodifieddate_column(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_lastmodifieddate_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+   NEW.lastmodifieddate = now(); 
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_lastmodifieddate_column() OWNER TO postgres;
+
+--
+-- Name: update_stock_table(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_stock_table() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+   update_delta double precision;
+   BEGIN
+IF(TG_OP = 'INSERT') THEN
+-- location_id 1 is for receiving center and source_dest_id 1 and direction in means goods delivery from supplier
+insert into stock (location_id, productid, quantity, direction, source_dest_id ) values (1, NEW.product_id,NEW.quantity , 'in',1);
+RETURN NEW;
+ELSIF(TG_OP = 'DELETE') THEN
+-- location_id and source_dest_id being the same and direction down means its an adjustment
+insert into stock (location_id, productid, quantity, direction, source_dest_id ) values (1, OLD.product_id,OLD.quantity , 'down',1);
+RETURN NEW;
+ELSIF(TG_OP = 'UPDATE') THEN
+update_delta = NEW.quantity-OLD.quantity;
+    IF(update_delta>0) THEN
+	-- location_id and source_dest_id being the same and direction up means its an adjustment
+insert into stock (location_id, productid, quantity, direction, source_dest_id ) values (1,OLD.product_id, update_delta  , 'up',1);
+ELSE
+insert into stock (location_id, productid, quantity, direction, source_dest_id ) values (1,OLD.product_id, -update_delta  , 'down',1);
+END IF;
+RETURN NEW;
+END IF;
+   END;
+$$;
+
+
+ALTER FUNCTION public.update_stock_table() OWNER TO postgres;
+
+--
+-- Name: updatestockbalance(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.updatestockbalance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+   DECLARE
+   stock_balance double precision;
+   q double precision;
+   BEGIN
+select balance INTO stock_balance from stock where productid = NEW.productid
+  AND transactionid != NEW.transactionid AND location_id = NEW.location_id order by datecreated desc limit 1;
+  
+IF(NEW.direction!='adj') THEN
+
+IF(stock_balance IS NOT NULL) THEN
+
+IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
+  UPDATE stock SET balance = stock_balance  + NEW.quantity WHERE transactionid = NEW.transactionid;
+ELSE
+  IF(stock_balance - NEW.quantity >=0.0) THEN
+UPDATE stock SET balance = stock_balance - NEW.quantity WHERE transactionid = NEW.transactionid;
+ END IF;
+END IF;
+ELSE
+IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
+  UPDATE stock SET balance =  NEW.quantity WHERE transactionid = NEW.transactionid;
+END IF;
+END IF;
+END IF;
+SELECT sum(balance) INTO q from (select * from stock where transactionid in (select max(transactionid) from stock  group by (location_id, productid) ) AND productid=NEW.productid) as sub ;
+UPDATE distribution SET quantity = q WHERE product_id = NEW.productid;
+RETURN NEW;
+END
+$$;
+
+
+ALTER FUNCTION public.updatestockbalance() OWNER TO postgres;
+
+--
+-- Name: updatestransaction(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.updatestransaction() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+totalPrice_delta double precision;
+supplierid int;
+BEGIN
+   totalPrice_delta = NEW.total - OLD.total;
+   select supplier_id into supplierid from stransactions where id = NEW.transaction_id;
+   IF(totalPrice_delta != 0) THEN
+update stransactions set amount = amount + totalPrice_delta where id = NEW.transaction_id and supplier_id = supplierid and transaction_type = 'd';
+update stransactions set balance = balance + totalPrice_delta where id >= NEW.transaction_id and supplier_id = supplierid;
+RETURN NEW;
+ELSE
+RETURN NEW;
+   END IF;
+END;
+$$;
+
+
+ALTER FUNCTION public.updatestransaction() OWNER TO postgres;
+
+--
+-- Name: updatestransaction2(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.updatestransaction2() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+supplierid int;
+BEGIN
+select supplier_id into supplierid from stransactions where id = OLD.transaction_id;
+update stransactions set amount = amount - OLD.total where id = OLD.transaction_id and supplier_id = supplierid and transaction_type = 'd';
+update stransactions set balance = balance - OLD.total where id >= OLD.transaction_id and supplier_id = supplierid;
+RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.updatestransaction2() OWNER TO postgres;
+
+--
+-- Name: updatestransaction3(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.updatestransaction3() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+--
+-- updates the balances when a row is deleted in the stransactions table
+--
+DECLARE
+BEGIN
+update stransactions set balance = balance - OLD.amount where supplier_id = OLD.supplier_id;
+RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.updatestransaction3() OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- Name: category; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.category (
+    categoryid integer NOT NULL,
+    categoryname character varying(100) NOT NULL,
+    description character varying(100)
+);
+
+
+ALTER TABLE public.category OWNER TO postgres;
+
+--
+-- Name: category_categoryId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."category_categoryId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."category_categoryId_seq" OWNER TO postgres;
+
+--
+-- Name: category_categoryId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."category_categoryId_seq" OWNED BY public.category.categoryid;
+
+
+--
+-- Name: customer; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.customer (
+    id bigint NOT NULL,
+    firstname character varying(50) NOT NULL,
+    lastname character varying(50) NOT NULL,
+    sex character varying(10),
+    birthday character varying(50),
+    barcode character varying(100),
+    phone1 character varying(20),
+    phone2 character varying(20),
+    email character varying(50),
+    address text,
+    date_supplied timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT customer_sex_check CHECK (((sex)::text = ANY (ARRAY[('male'::character varying)::text, ('female'::character varying)::text])))
+);
+
+
+ALTER TABLE public.customer OWNER TO postgres;
+
+--
+-- Name: customer_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.customer_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.customer_id_seq OWNER TO postgres;
+
+--
+-- Name: customer_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.customer_id_seq OWNED BY public.customer.id;
+
+
+--
+-- Name: customer_statement; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.customer_statement (
+    id bigint NOT NULL,
+    customer_id integer,
+    amount double precision NOT NULL,
+    balance double precision NOT NULL,
+    date_entered timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    type character varying(15) NOT NULL,
+    CONSTRAINT amount_non_negative CHECK ((amount >= (0)::double precision)),
+    CONSTRAINT balance_non_negative CHECK ((balance >= (0)::double precision)),
+    CONSTRAINT customer_statement_type_check CHECK (((type)::text = ANY (ARRAY[('Inv'::character varying)::text, ('Del'::character varying)::text, ('Rec'::character varying)::text])))
+);
+
+
+ALTER TABLE public.customer_statement OWNER TO postgres;
+
+--
+-- Name: customer_statement_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.customer_statement_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.customer_statement_id_seq OWNER TO postgres;
+
+--
+-- Name: customer_statement_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.customer_statement_id_seq OWNED BY public.customer_statement.id;
+
+
+--
+-- Name: deletedsales; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.deletedsales (
+    id bigint NOT NULL,
+    productid integer NOT NULL,
+    quantity double precision NOT NULL,
+    price double precision NOT NULL,
+    discount double precision,
+    invoice_id integer NOT NULL,
+    total double precision NOT NULL,
+    margin double precision DEFAULT 0 NOT NULL,
+    username character varying(30) NOT NULL,
+    date_sold timestamp without time zone,
+    date_created timestamp without time zone DEFAULT now() NOT NULL,
+    date_modified timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT discount_nonnegative CHECK ((discount >= (0)::double precision)),
+    CONSTRAINT margin_nonnegative CHECK ((margin >= (0)::double precision)),
+    CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision)),
+    CONSTRAINT total_nonnegative CHECK ((total >= (0)::double precision))
+);
+
+
+ALTER TABLE public.deletedsales OWNER TO postgres;
+
+--
+-- Name: deletedsales_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.deletedsales_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.deletedsales_id_seq OWNER TO postgres;
+
+--
+-- Name: deletedsales_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.deletedsales_id_seq OWNED BY public.deletedsales.id;
+
+
+--
+-- Name: delivery; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.delivery (
+    id bigint NOT NULL,
+    product_id integer NOT NULL,
+    transaction_id integer NOT NULL,
+    quantity double precision NOT NULL,
+    price double precision NOT NULL,
+    total double precision DEFAULT 0.0 NOT NULL,
+    supplier_invoice integer,
+    date_supplied timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision)),
+    CONSTRAINT total_nonnegative CHECK ((total >= (0)::double precision))
+);
+
+
+ALTER TABLE public.delivery OWNER TO postgres;
+
+--
+-- Name: delivery_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.delivery_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.delivery_id_seq OWNER TO postgres;
+
+--
+-- Name: delivery_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.delivery_id_seq OWNED BY public.delivery.id;
+
+
+--
+-- Name: distribution; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.distribution (
+    product_id integer NOT NULL,
+    date_added timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    quantity double precision DEFAULT 0.0 NOT NULL,
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision))
+);
+
+
+ALTER TABLE public.distribution OWNER TO postgres;
+
+--
+-- Name: invoice; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.invoice (
+    id integer NOT NULL,
+    username character varying(20) NOT NULL,
+    date_created timestamp without time zone DEFAULT now() NOT NULL,
+    customer_id integer,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    amount double precision DEFAULT 0.0 NOT NULL,
+    status character varying(15) DEFAULT 'paid'::character varying NOT NULL,
+    tillnumber integer DEFAULT 1 NOT NULL,
+    CONSTRAINT amount_nonnegative CHECK ((amount >= (0)::double precision)),
+    CONSTRAINT invoice_status_check CHECK (((status)::text = ANY (ARRAY[('paid'::character varying)::text, ('unpaid'::character varying)::text, ('partial'::character varying)::text])))
+);
+
+
+ALTER TABLE public.invoice OWNER TO postgres;
+
+--
+-- Name: item; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.item (
+    id integer NOT NULL,
+    productid integer NOT NULL,
+    quantity double precision NOT NULL,
+    price double precision NOT NULL,
+    discount double precision,
+    invoice_id integer NOT NULL,
+    total double precision NOT NULL,
+    margin double precision DEFAULT 0 NOT NULL,
+    date_entered timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT discount_nonnegative CHECK ((discount >= (0)::double precision)),
+    CONSTRAINT margin_nonnegative CHECK ((margin >= (0)::double precision)),
+    CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision)),
+    CONSTRAINT total_nonnegative CHECK ((total >= (0)::double precision))
+);
+
+
+ALTER TABLE public.item OWNER TO postgres;
+
+--
+-- Name: location; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.location (
+    id bigint NOT NULL,
+    location character varying(50) NOT NULL,
+    created_date timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.location OWNER TO postgres;
+
+--
+-- Name: location_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.location_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.location_id_seq OWNER TO postgres;
+
+--
+-- Name: location_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.location_id_seq OWNED BY public.location.id;
+
+
+--
+-- Name: product; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.product (
+    productid integer NOT NULL,
+    categoryid integer,
+    productname character varying(100) NOT NULL,
+    description character varying(100) DEFAULT 'none'::character varying NOT NULL,
+    price double precision NOT NULL,
+    barcode character varying(100) DEFAULT 'none'::character varying NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    comments character varying(400) DEFAULT 'none'::character varying NOT NULL,
+    datecreated timestamp without time zone DEFAULT now() NOT NULL,
+    units character varying(50) DEFAULT 'none'::character varying NOT NULL,
+    costprice double precision DEFAULT 0 NOT NULL,
+    margin double precision DEFAULT 0 NOT NULL,
+    stock_low_threshold double precision DEFAULT 0.0 NOT NULL,
+    CONSTRAINT costprice_nonnegative CHECK ((costprice >= (0)::double precision)),
+    CONSTRAINT margin_nonnegative CHECK ((margin >= (0)::double precision)),
+    CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
+    CONSTRAINT stock_low_threshold_nonnegative CHECK ((stock_low_threshold >= (0)::double precision))
+);
+
+
+ALTER TABLE public.product OWNER TO postgres;
+
+--
+-- Name: product_productId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."product_productId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."product_productId_seq" OWNER TO postgres;
+
+--
+-- Name: product_productId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."product_productId_seq" OWNED BY public.product.productid;
+
+
+--
+-- Name: receipt; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.receipt (
+    id bigint NOT NULL,
+    cash_received double precision NOT NULL,
+    change double precision NOT NULL,
+    invoice_id integer,
+    description text,
+    balance double precision DEFAULT 0.0 NOT NULL,
+    customer_id integer,
+    rec_type character varying(15) DEFAULT 'current'::character varying NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    date_created timestamp without time zone DEFAULT now() NOT NULL,
+    tillnumber integer DEFAULT 1 NOT NULL,
+    username character varying(50) DEFAULT 'ibalihikya'::character varying NOT NULL,
+    CONSTRAINT balance_nonnegative CHECK ((balance >= (0)::double precision)),
+    CONSTRAINT cash_received_nonnegative CHECK ((cash_received >= (0)::double precision)),
+    CONSTRAINT change_nonnegative CHECK ((change >= (0)::double precision)),
+    CONSTRAINT receipt_rec_type_check CHECK (((rec_type)::text = ANY (ARRAY[('current'::character varying)::text, ('arrears'::character varying)::text])))
+);
+
+
+ALTER TABLE public.receipt OWNER TO postgres;
+
+--
+-- Name: receipt_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.receipt_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.receipt_id_seq OWNER TO postgres;
+
+--
+-- Name: receipt_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.receipt_id_seq OWNED BY public.receipt.id;
+
+
+--
+-- Name: receipt_receiptId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."receipt_receiptId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."receipt_receiptId_seq" OWNER TO postgres;
+
+--
+-- Name: receipt_receiptId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."receipt_receiptId_seq" OWNED BY public.invoice.id;
+
+
+--
+-- Name: refund; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.refund (
+    id bigint NOT NULL,
+    username character varying(30) NOT NULL,
+    receipt_no integer,
+    grandtotal double precision NOT NULL,
+    amount double precision,
+    comment text NOT NULL,
+    date_paid timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT amount_nonnegative CHECK ((amount >= (0)::double precision))
+);
+
+
+ALTER TABLE public.refund OWNER TO postgres;
+
+--
+-- Name: refund_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.refund_details (
+    id bigint NOT NULL,
+    product_id integer NOT NULL,
+    refund_id integer NOT NULL,
+    quantity double precision NOT NULL,
+    price double precision NOT NULL,
+    total double precision DEFAULT 0.0 NOT NULL,
+    receipt_id integer DEFAULT 0 NOT NULL,
+    date_created timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision)),
+    CONSTRAINT total_nonnegative CHECK ((total >= (0)::double precision))
+);
+
+
+ALTER TABLE public.refund_details OWNER TO postgres;
+
+--
+-- Name: refund_details_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.refund_details_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.refund_details_id_seq OWNER TO postgres;
+
+--
+-- Name: refund_details_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.refund_details_id_seq OWNED BY public.refund_details.id;
+
+
+--
+-- Name: refund_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.refund_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.refund_id_seq OWNER TO postgres;
+
+--
+-- Name: refund_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.refund_id_seq OWNED BY public.refund.id;
+
+
+--
+-- Name: source_dest; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.source_dest (
+    id bigint NOT NULL,
+    source_dest character varying(50) NOT NULL,
+    created_date timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.source_dest OWNER TO postgres;
+
+--
+-- Name: source_dest_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.source_dest_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.source_dest_id_seq OWNER TO postgres;
+
+--
+-- Name: source_dest_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.source_dest_id_seq OWNED BY public.source_dest.id;
+
+
+--
+-- Name: statement_invoice; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.statement_invoice (
+    statement_id integer NOT NULL,
+    invoice_id integer NOT NULL
+);
+
+
+ALTER TABLE public.statement_invoice OWNER TO postgres;
+
+--
+-- Name: statement_receipt; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.statement_receipt (
+    statement_id integer NOT NULL,
+    receipt_id integer NOT NULL
+);
+
+
+ALTER TABLE public.statement_receipt OWNER TO postgres;
+
+--
+-- Name: stock; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.stock (
+    transactionid integer NOT NULL,
+    productid integer NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    comments character varying(400),
+    datecreated timestamp without time zone DEFAULT now() NOT NULL,
+    quantity double precision DEFAULT 0.0 NOT NULL,
+    balance double precision DEFAULT 0.0 NOT NULL,
+    username character varying(20),
+    direction character varying(15) NOT NULL,
+    location_id integer,
+    source_dest_id integer,
+    CONSTRAINT balance_nonnegative CHECK ((balance >= (0)::double precision)),
+    CONSTRAINT quantity_nonnegative CHECK ((quantity >= (0)::double precision)),
+    CONSTRAINT stock_direction_check CHECK (((direction)::text = ANY (ARRAY[('in'::character varying)::text, ('out'::character varying)::text, ('up'::character varying)::text, ('down'::character varying)::text, ('adj'::character varying)::text])))
+);
+
+
+ALTER TABLE public.stock OWNER TO postgres;
+
+--
+-- Name: stock_transactionId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."stock_transactionId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."stock_transactionId_seq" OWNER TO postgres;
+
+--
+-- Name: stock_transactionId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."stock_transactionId_seq" OWNED BY public.stock.transactionid;
+
+
+--
+-- Name: stransactions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.stransactions (
+    id bigint NOT NULL,
+    description text NOT NULL,
+    transaction_type character(1) DEFAULT 'd'::bpchar NOT NULL,
+    amount double precision NOT NULL,
+    balance double precision DEFAULT 0.0 NOT NULL,
+    date_entered timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    supplier_id integer NOT NULL,
+    CONSTRAINT amount_nonnegative CHECK ((amount >= (0)::double precision)),
+    CONSTRAINT balance_nonnegative CHECK ((balance >= (0)::double precision)),
+    CONSTRAINT stransactions_transaction_type_check CHECK ((transaction_type = ANY (ARRAY['d'::bpchar, 'p'::bpchar, 'a'::bpchar])))
+);
+
+
+ALTER TABLE public.stransactions OWNER TO postgres;
+
+--
+-- Name: stransactions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.stransactions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.stransactions_id_seq OWNER TO postgres;
+
+--
+-- Name: stransactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.stransactions_id_seq OWNED BY public.stransactions.id;
+
+
+--
+-- Name: supplier; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.supplier (
+    id bigint NOT NULL,
+    supplier_name character varying(30) NOT NULL,
+    phone1 text NOT NULL,
+    phone2 text,
+    email text,
+    address text,
+    created timestamp without time zone DEFAULT now() NOT NULL,
+    bank_name text,
+    account_number text,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.supplier OWNER TO postgres;
+
+--
+-- Name: supplier_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.supplier_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.supplier_id_seq OWNER TO postgres;
+
+--
+-- Name: supplier_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.supplier_id_seq OWNED BY public.supplier.id;
+
+
+--
+-- Name: transaction_transactionId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."transaction_transactionId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."transaction_transactionId_seq" OWNER TO postgres;
+
+--
+-- Name: transaction_transactionId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."transaction_transactionId_seq" OWNED BY public.item.id;
+
+
+--
+-- Name: units; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.units (
+    unitid integer NOT NULL,
+    unit character varying(15) NOT NULL
+);
+
+
+ALTER TABLE public.units OWNER TO postgres;
+
+--
+-- Name: units_unitId_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."units_unitId_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public."units_unitId_seq" OWNER TO postgres;
+
+--
+-- Name: units_unitId_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."units_unitId_seq" OWNED BY public.units.unitid;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    username text NOT NULL,
+    firstname character varying(20) NOT NULL,
+    lastname character varying(20) NOT NULL,
+    password character varying(50) NOT NULL,
+    salt bytea NOT NULL,
+    isadmin boolean DEFAULT false NOT NULL,
+    date_entered timestamp without time zone DEFAULT now() NOT NULL,
+    lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT username_col_len CHECK ((length(username) >= 4))
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- Name: category categoryid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.category ALTER COLUMN categoryid SET DEFAULT nextval('public."category_categoryId_seq"'::regclass);
+
+
+--
+-- Name: customer id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer ALTER COLUMN id SET DEFAULT nextval('public.customer_id_seq'::regclass);
+
+
+--
+-- Name: customer_statement id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer_statement ALTER COLUMN id SET DEFAULT nextval('public.customer_statement_id_seq'::regclass);
+
+
+--
+-- Name: deletedsales id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletedsales ALTER COLUMN id SET DEFAULT nextval('public.deletedsales_id_seq'::regclass);
+
+
+--
+-- Name: delivery id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.delivery ALTER COLUMN id SET DEFAULT nextval('public.delivery_id_seq'::regclass);
+
+
+--
+-- Name: invoice id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.invoice ALTER COLUMN id SET DEFAULT nextval('public."receipt_receiptId_seq"'::regclass);
+
+
+--
+-- Name: item id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.item ALTER COLUMN id SET DEFAULT nextval('public."transaction_transactionId_seq"'::regclass);
+
+
+--
+-- Name: location id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.location ALTER COLUMN id SET DEFAULT nextval('public.location_id_seq'::regclass);
+
+
+--
+-- Name: product productid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product ALTER COLUMN productid SET DEFAULT nextval('public."product_productId_seq"'::regclass);
+
+
+--
+-- Name: receipt id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receipt ALTER COLUMN id SET DEFAULT nextval('public.receipt_id_seq'::regclass);
+
+
+--
+-- Name: refund id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refund ALTER COLUMN id SET DEFAULT nextval('public.refund_id_seq'::regclass);
+
+
+--
+-- Name: refund_details id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refund_details ALTER COLUMN id SET DEFAULT nextval('public.refund_details_id_seq'::regclass);
+
+
+--
+-- Name: source_dest id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.source_dest ALTER COLUMN id SET DEFAULT nextval('public.source_dest_id_seq'::regclass);
+
+
+--
+-- Name: stock transactionid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock ALTER COLUMN transactionid SET DEFAULT nextval('public."stock_transactionId_seq"'::regclass);
+
+
+--
+-- Name: stransactions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stransactions ALTER COLUMN id SET DEFAULT nextval('public.stransactions_id_seq'::regclass);
+
+
+--
+-- Name: supplier id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.supplier ALTER COLUMN id SET DEFAULT nextval('public.supplier_id_seq'::regclass);
+
+
+--
+-- Name: units unitid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.units ALTER COLUMN unitid SET DEFAULT nextval('public."units_unitId_seq"'::regclass);
+
+
+--
+-- Name: category category_name_must_be_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.category
+    ADD CONSTRAINT category_name_must_be_unique UNIQUE (categoryname);
+
+
+--
+-- Name: category category_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.category
+    ADD CONSTRAINT category_pkey PRIMARY KEY (categoryid);
+
+
+--
+-- Name: customer customer_firstname_lastname_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer
+    ADD CONSTRAINT customer_firstname_lastname_key UNIQUE (firstname, lastname);
+
+
+--
+-- Name: customer customer_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer
+    ADD CONSTRAINT customer_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_statement customer_statement_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer_statement
+    ADD CONSTRAINT customer_statement_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deletedsales deletedsales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletedsales
+    ADD CONSTRAINT deletedsales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: delivery delivery_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.delivery
+    ADD CONSTRAINT delivery_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: distribution distribution_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.distribution
+    ADD CONSTRAINT distribution_pkey PRIMARY KEY (product_id);
+
+
+--
+-- Name: location location_must_be_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.location
+    ADD CONSTRAINT location_must_be_unique UNIQUE (location);
+
+
+--
+-- Name: location location_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.location
+    ADD CONSTRAINT location_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: product product_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_pkey PRIMARY KEY (productid);
+
+
+--
+-- Name: product productname_must_be_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT productname_must_be_unique UNIQUE (productname);
+
+
+--
+-- Name: invoice receipt_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.invoice
+    ADD CONSTRAINT receipt_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: receipt receipt_pkey1; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receipt
+    ADD CONSTRAINT receipt_pkey1 PRIMARY KEY (id);
+
+
+--
+-- Name: refund_details refund_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refund_details
+    ADD CONSTRAINT refund_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: refund refund_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refund
+    ADD CONSTRAINT refund_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_dest source_dest_must_be_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.source_dest
+    ADD CONSTRAINT source_dest_must_be_unique UNIQUE (source_dest);
+
+
+--
+-- Name: source_dest source_dest_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.source_dest
+    ADD CONSTRAINT source_dest_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: statement_invoice statement_invoice_statement_id_invoice_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_invoice
+    ADD CONSTRAINT statement_invoice_statement_id_invoice_id_key UNIQUE (statement_id, invoice_id);
+
+
+--
+-- Name: statement_receipt statement_receipt_statement_id_receipt_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_receipt
+    ADD CONSTRAINT statement_receipt_statement_id_receipt_id_key UNIQUE (statement_id, receipt_id);
+
+
+--
+-- Name: stock stock_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock
+    ADD CONSTRAINT stock_pkey PRIMARY KEY (transactionid);
+
+
+--
+-- Name: stransactions stransactions_id_transaction_type_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stransactions
+    ADD CONSTRAINT stransactions_id_transaction_type_key UNIQUE (id, transaction_type);
+
+
+--
+-- Name: stransactions stransactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stransactions
+    ADD CONSTRAINT stransactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier supplier_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.supplier
+    ADD CONSTRAINT supplier_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier supplier_supplier_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.supplier
+    ADD CONSTRAINT supplier_supplier_name_key UNIQUE (supplier_name);
+
+
+--
+-- Name: item transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.item
+    ADD CONSTRAINT transaction_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: units unit_must_be_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.units
+    ADD CONSTRAINT unit_must_be_unique UNIQUE (unit);
+
+
+--
+-- Name: units units_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.units
+    ADD CONSTRAINT units_pkey PRIMARY KEY (unitid);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (username);
+
+
+--
+-- Name: stransactions tg_delivery_payment; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_delivery_payment AFTER INSERT ON public.stransactions FOR EACH ROW EXECUTE PROCEDURE public.update_balance();
+
+
+--
+-- Name: delivery tg_delivery_stock; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_delivery_stock AFTER INSERT OR DELETE OR UPDATE ON public.delivery FOR EACH ROW EXECUTE PROCEDURE public.update_stock_table();
+
+
+--
+-- Name: delivery tg_delivery_stransaction; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_delivery_stransaction AFTER UPDATE ON public.delivery FOR EACH ROW EXECUTE PROCEDURE public.updatestransaction();
+
+
+--
+-- Name: delivery tg_delivery_stransaction2; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_delivery_stransaction2 AFTER DELETE ON public.delivery FOR EACH ROW EXECUTE PROCEDURE public.updatestransaction2();
+
+
+--
+-- Name: invoice tg_invoice_statement; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_invoice_statement AFTER INSERT OR UPDATE ON public.invoice FOR EACH ROW EXECUTE PROCEDURE public.update_customer_stmt_balance();
+
+
+--
+-- Name: item tg_item_inovice; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_item_inovice AFTER DELETE ON public.item FOR EACH ROW EXECUTE PROCEDURE public.decrease_invoice_amount();
+
+
+--
+-- Name: item tg_item_stock; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_item_stock AFTER INSERT ON public.item FOR EACH ROW EXECUTE PROCEDURE public.reducestock();
+
+
+--
+-- Name: product tg_product_distribution; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_product_distribution AFTER INSERT ON public.product FOR EACH ROW EXECUTE PROCEDURE public.add_product_to_distribution_table();
+
+
+--
+-- Name: receipt tg_receipt_statement; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_receipt_statement AFTER INSERT ON public.receipt FOR EACH ROW EXECUTE PROCEDURE public.update_customer_balance();
+
+
+--
+-- Name: stock tg_stock_balance; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_stock_balance AFTER INSERT ON public.stock FOR EACH ROW EXECUTE PROCEDURE public.updatestockbalance();
+
+
+--
+-- Name: stransactions tg_stransaction; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_stransaction AFTER DELETE ON public.stransactions FOR EACH ROW EXECUTE PROCEDURE public.updatestransaction3();
+
+
+--
+-- Name: delivery tg_update_total_price; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_update_total_price BEFORE INSERT OR UPDATE ON public.delivery FOR EACH ROW EXECUTE PROCEDURE public.compute_total_price();
+
+
+--
+-- Name: customer update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.customer FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: delivery update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.delivery FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: distribution update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.distribution FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: invoice update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.invoice FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: item update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.item FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: product update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.product FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: receipt update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.receipt FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: stock update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.stock FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: stransactions update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.stransactions FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: supplier update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.supplier FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: users update_lastmodifieddate; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE PROCEDURE public.update_lastmodifieddate_column();
+
+
+--
+-- Name: product update_margin; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_margin BEFORE INSERT OR UPDATE ON public.product FOR EACH ROW EXECUTE PROCEDURE public.compute_margin();
+
+
+--
+-- Name: item update_margin; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_margin BEFORE INSERT OR UPDATE ON public.item FOR EACH ROW EXECUTE PROCEDURE public.compute_transaction_margin();
+
+
+--
+-- Name: customer_statement customer_statement_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer_statement
+    ADD CONSTRAINT customer_statement_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customer(id) ON DELETE CASCADE;
+
+
+--
+-- Name: delivery delivery_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.delivery
+    ADD CONSTRAINT delivery_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.product(productid) ON DELETE RESTRICT;
+
+
+--
+-- Name: delivery delivery_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.delivery
+    ADD CONSTRAINT delivery_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.stransactions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: distribution distribution_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.distribution
+    ADD CONSTRAINT distribution_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.product(productid) ON DELETE CASCADE;
+
+
+--
+-- Name: invoice invoice_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.invoice
+    ADD CONSTRAINT invoice_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customer(id) ON DELETE CASCADE;
+
+
+--
+-- Name: item item_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.item
+    ADD CONSTRAINT item_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deletedsales item_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletedsales
+    ADD CONSTRAINT item_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: product product_categoryid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_categoryid_fkey FOREIGN KEY (categoryid) REFERENCES public.category(categoryid) ON DELETE RESTRICT;
+
+
+--
+-- Name: receipt receipt_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receipt
+    ADD CONSTRAINT receipt_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customer(id) ON DELETE CASCADE;
+
+
+--
+-- Name: receipt receipt_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.receipt
+    ADD CONSTRAINT receipt_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: refund_details refund_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refund_details
+    ADD CONSTRAINT refund_id_fkey FOREIGN KEY (refund_id) REFERENCES public.refund(id) ON DELETE CASCADE;
+
+
+--
+-- Name: statement_invoice statement_invoice_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_invoice
+    ADD CONSTRAINT statement_invoice_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: statement_invoice statement_invoice_statement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_invoice
+    ADD CONSTRAINT statement_invoice_statement_id_fkey FOREIGN KEY (statement_id) REFERENCES public.customer_statement(id) ON DELETE CASCADE;
+
+
+--
+-- Name: statement_receipt statement_receipt_receipt_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_receipt
+    ADD CONSTRAINT statement_receipt_receipt_id_fkey FOREIGN KEY (receipt_id) REFERENCES public.receipt(id) ON DELETE CASCADE;
+
+
+--
+-- Name: statement_receipt statement_receipt_statement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.statement_receipt
+    ADD CONSTRAINT statement_receipt_statement_id_fkey FOREIGN KEY (statement_id) REFERENCES public.customer_statement(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock stock_location_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock
+    ADD CONSTRAINT stock_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.location(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock stock_productid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock
+    ADD CONSTRAINT stock_productid_fkey FOREIGN KEY (productid) REFERENCES public.product(productid) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock stock_source_dest_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock
+    ADD CONSTRAINT stock_source_dest_id_fkey FOREIGN KEY (source_dest_id) REFERENCES public.location(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock stock_username_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stock
+    ADD CONSTRAINT stock_username_fkey FOREIGN KEY (username) REFERENCES public.users(username) ON DELETE RESTRICT;
+
+
+--
+-- Name: stransactions stransactions_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.stransactions
+    ADD CONSTRAINT stransactions_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.supplier(id) ON DELETE CASCADE;
+
+
+--
+-- Name: item transaction_productid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.item
+    ADD CONSTRAINT transaction_productid_fkey FOREIGN KEY (productid) REFERENCES public.product(productid) ON DELETE RESTRICT;
+
+
+--
+-- Name: deletedsales transaction_productid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletedsales
+    ADD CONSTRAINT transaction_productid_fkey FOREIGN KEY (productid) REFERENCES public.product(productid) ON DELETE CASCADE;
+
+
+--
+-- Name: deletedsales username_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletedsales
+    ADD CONSTRAINT username_fkey FOREIGN KEY (username) REFERENCES public.users(username) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+

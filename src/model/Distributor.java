@@ -20,11 +20,13 @@ public class Distributor {
     private String date_time_modified;
     private double stockLowThreshold;
     private static MySqlAccess mAcess;
+    private String loggedinUser;
 
 
-    public Distributor(int productId,  String serverIp) {
+    public Distributor(int productId, String loggedinUser,  String serverIp) {
         this.productId = productId;
         mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME, serverIp);
+        this.loggedinUser = loggedinUser;
     }
 
     public double getTotalQuantityInStock() {
@@ -83,28 +85,29 @@ public class Distributor {
             StockItem stockItem = new StockItem();
             stockItem.setProductId(productId);
 
+
             //for the location whose quantity is being reduced
             stockItem.setDirection(Direction.out);
             stockItem.setLocation(source);
             stockItem.setSource_dest(dest);
             stockItem.setQuantity(transfer_qty);
-            int transactionid = mAcess.updateStock("ibalihikya",stockItem);
+            int transactionid = mAcess.updateStock(loggedinUser,stockItem);
 
             //TODO: this is to refresh stock transactions table but it should not be in Distributor object. For better design shift functionality to a refreshTable() function
             //TODO: which should be in the MainForm-ProductCategory
-            StockItem returnedStockItem = mAcess.getStockItem(transactionid);
-            stockItems.add(0,returnedStockItem);
+//            StockItem lastInsertedStockItem = mAcess.getStockItem(transactionid);
+//            stockItems.add(0,lastInsertedStockItem);
 
             //for the location whose quantity is being reduced
             stockItem.setDirection(Direction.in);
             stockItem.setLocation(dest);
             stockItem.setSource_dest(source);
-            transactionid= mAcess.updateStock("ibalihikya",stockItem);
+            transactionid= mAcess.updateStock(loggedinUser,stockItem);
 
             //TODO: this is to refresh stock transactions table but it should not be in Distributor object. For better design shift functionality to a refreshTable() function
             //TODO: which should be in the MainForm-ProductCategory
-            returnedStockItem = mAcess.getStockItem(transactionid);
-            stockItems.add(0,returnedStockItem);
+//            lastInsertedStockItem = mAcess.getStockItem(transactionid);
+//            stockItems.add(0,lastInsertedStockItem);
 
 
         } catch (Exception e) {

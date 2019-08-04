@@ -13,6 +13,9 @@ import print.Header;
 import print.Printer2;
 
 import javax.swing.*;
+import javax.swing.text.DefaultFormatterFactory;
+import javax.swing.text.NumberFormatter;
+import java.awt.*;
 import java.awt.event.*;
 import java.awt.print.PageFormat;
 import java.awt.print.Paper;
@@ -20,6 +23,8 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,12 +36,20 @@ public class PayDialog extends JDialog {
     private JComboBox invoiceComboBox;
     private JFormattedTextField cashFormattedTextField;
     private JFormattedTextField balanceFormattedTextField;
+    private JButton goButton;
+    private JLabel statusMessageLabel;
     private static MySqlAccess mAcess;
+    private String userName;
     private Header header;
+    private int tillNumber;
     //the amount owed: either the total balance for a customer or the balance on an specific invoice
     private double balance = 0.0; //TODO: be careful. global variable set for change computation, should only be local in invoiceComboBox.addActionListener
 
-    public PayDialog(JFrame frame, Header header, String serverIp) {
+    private static boolean DEBUG = true; //for debugging getFormattedEditor function
+    private static NumberFormat doubleFormat;
+
+
+    public PayDialog(JFrame frame, Header header,String userName, int tillNumber, String serverIp) {
         super(frame,true);
         setContentPane(contentPane);
         //setModal(true);
@@ -44,6 +57,18 @@ public class PayDialog extends JDialog {
         setTitle("Payment");
         mAcess = new MySqlAccess(SqlStrings.PRODUCTION_DB_NAME,serverIp);
         this.header = header;
+        this.userName=userName;
+        this.tillNumber = tillNumber;
+
+        doubleFormat = NumberFormat.getNumberInstance();
+        NumberFormatter doubleFormatter = new NumberFormatter(doubleFormat);
+        doubleFormatter.setFormat(doubleFormat);
+
+        cashFormattedTextField.setFormatterFactory(
+                new DefaultFormatterFactory(doubleFormatter));
+
+
+
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -57,30 +82,29 @@ public class PayDialog extends JDialog {
         });
         thread.start();
 
-        customerComboBox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
-                try {
-                    Customer customer = (Customer)customerComboBox.getSelectedItem();
-                    int customerId = customer.getId();
-//                    Double balance = mAcess.getCustomerBalance(customerId);
-//                    balanceFormattedTextField.setText(Double.toString(balance));
-
-                    //get both partial and unpaid invoices
-
-                    invoiceComboBox.setModel(new DefaultComboBoxModel(mAcess.getUnpaidInvoices(customerId).toArray()));
-                    invoiceComboBox.insertItemAt("",0);
-                    invoiceComboBox.setSelectedIndex(0);
-                } catch (ClassNotFoundException e1) {
-                    e1.printStackTrace();
-                } catch (SQLException e1) {
-                    e1.printStackTrace();
-                }catch (Exception e1){
-                    e1.printStackTrace();
-                }
-            }
-        });
+//        customerComboBox.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//
+//                try {
+//                    Customer customer = (Customer)customerComboBox.getSelectedItem();
+//                    int customerId = customer.getId();
+//
+//
+//                    //get both partial and unpaid invoices
+//
+//                    invoiceComboBox.setModel(new DefaultComboBoxModel(mAcess.getUnpaidInvoices(customerId).toArray()));
+//                    invoiceComboBox.insertItemAt("",0);
+//                    invoiceComboBox.setSelectedIndex(0);
+//                } catch (ClassNotFoundException e1) {
+//                    e1.printStackTrace();
+//                } catch (SQLException e1) {
+//                    e1.printStackTrace();
+//                }catch (Exception e1){
+//                    e1.printStackTrace();
+//                }
+//            }
+//        });
 
         invoiceComboBox.addActionListener(new ActionListener() {
             @Override
@@ -89,7 +113,6 @@ public class PayDialog extends JDialog {
                     if(invoiceComboBox.getSelectedIndex()!=0){ //set balance for specific invoice
                         Invoice invoice = (Invoice) invoiceComboBox.getSelectedItem();
                         //TODO: use enum for invoice status
-                        //double balance = invoice.getStatus().equals("partial") ? mAcess.getInvoiceBalance(invoice.getId()) : invoice.getAmount();
                         balance = invoice.getStatus().equals("partial") ? mAcess.getInvoiceBalance(invoice.getId()) : invoice.getAmount();
 
                         //balanceFormattedTextField.setText(Double.toString(balance));
@@ -117,7 +140,6 @@ public class PayDialog extends JDialog {
 
         buttonOK.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-
                 onOK();
             }
         });
@@ -145,11 +167,109 @@ public class PayDialog extends JDialog {
 
         pack();
         setLocationRelativeTo(null);
+        goButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                try {
+                    Customer customer = (Customer)customerComboBox.getSelectedItem();
+                    int customerId = customer.getId();
+
+
+                    //get both partial and unpaid invoices
+
+                    invoiceComboBox.setModel(new DefaultComboBoxModel(mAcess.getUnpaidInvoices(customerId).toArray()));
+                    invoiceComboBox.insertItemAt("",0);
+                    invoiceComboBox.setSelectedIndex(0);
+                } catch (ClassNotFoundException e1) {
+                    e1.printStackTrace();
+                } catch (SQLException e1) {
+                    e1.printStackTrace();
+                }catch (Exception e1){
+                    e1.printStackTrace();
+                }
+
+            }
+        });
+        customerComboBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                balanceFormattedTextField.setValue("");
+                cashFormattedTextField.setValue(null);
+                invoiceComboBox.setModel(new DefaultComboBoxModel());
+
+            }
+        });
+        cashFormattedTextField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                super.keyTyped(e);
+            }
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+
+                //super.keyReleased(e);
+                if(e.getKeyCode()==KeyEvent.VK_ESCAPE){
+                    KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+                    cashFormattedTextField.setValue(null);
+                    cashFormattedTextField.setFocusable(false);
+                    fm.getActiveWindow().requestFocusInWindow();
+
+
+                }
+
+                double cash = 0.0;
+
+                if(!cashFormattedTextField.getText().isEmpty()) {
+                    cash = (double)getFormattedTextFieldValue(cashFormattedTextField);
+                }
+
+                if(cash>0.0) {
+                    cashFormattedTextField.setText(String.format("%,.0f", cash));
+                }
+            }
+        });
+    }
+
+    public static Object getFormattedTextFieldValue(JFormattedTextField ftf)  {
+
+        try {
+            ftf.commitEdit();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        Object o = ftf.getValue();
+        if (o instanceof Double) {
+            return o;
+        } else if (o instanceof Number) {
+            return new Double(((Number) o).doubleValue());
+        } else {
+            if (DEBUG) {
+                System.out.println("getCellEditorValue: o isn't a Number");
+            }
+            try {
+                return doubleFormat.parseObject(o.toString());
+            } catch (ParseException exc) {
+                System.err.println("getCellEditorValue: can't parse o: " + o);
+                return null;
+            }
+        }
+
+
     }
 
     private void onOK() {
         try {
-            Double cash = Double.parseDouble(cashFormattedTextField.getText());
+            //Double cash = Double.parseDouble(cashFormattedTextField.getText());
+            Double cash =(Double)getFormattedTextFieldValue(cashFormattedTextField);
             if(cash < 0.0){
                 JOptionPane.showMessageDialog(null,"Cash can not be negative", "Invalid value"
                 , JOptionPane.ERROR_MESSAGE);
@@ -179,6 +299,8 @@ public class PayDialog extends JDialog {
                     receipt.setPartialPayment(partial_payment); // this is the previous amount paid that will be indicated on the receipt printout
                     receipt.setChange(change);
                     receipt.setReceiptType(ReceiptType.arrears);
+                    receipt.setCashierName(userName);
+                    receipt.setTillnumber(tillNumber);
 
                     int receiptId = mAcess.generateReceipt(receipt);
                     receipt.setReceiptId(receiptId);
@@ -187,7 +309,7 @@ public class PayDialog extends JDialog {
 
                     print(invoice, receipt, header);
 
-                } else {
+                } else {//clear balance for several invoices
                     ArrayList<Printout> printouts = new ArrayList<>(); //to hold the invoice and receipt pairs
                     //Double cash = Double.parseDouble(cashFormattedTextField.getText());
                     Customer customer = (Customer) customerComboBox.getSelectedItem();
@@ -212,14 +334,18 @@ public class PayDialog extends JDialog {
                             cash_rcvd = cash;
                         }
 
+                        if(cash_rcvd==0)
+                            continue; // to prevent generating receipts when no cash is received
+
+
                         receipt.setCashReceived(cash_rcvd);
 
                         receipt.setCustomerId(customer.getId());
                         receipt.setFirstname(customer.getFirstname());
                         receipt.setLastname(customer.getLastname());
-
+                        receipt.setCashierName(userName);
+                        receipt.setTillnumber(tillNumber);
                         receipt.setBalance(balance);
-
                         receipt.setPartialPayment(partial_payment); // this is the previous amount paid that will be indicated on the receipt printout
 
                         double change = (amountOwed < cash) && (invoiceCount < numberOfInvoices - 1) ? 0.0 : cash - amountOwed;
@@ -234,6 +360,8 @@ public class PayDialog extends JDialog {
                         int receiptId = mAcess.generateReceipt(receipt);
                         receipt.setReceiptId(receiptId);
 
+
+                        //todo: what if balance = 0, will the invoice status be updated
                         InvoiceStatus invoiceStatus = balance > 0 ? InvoiceStatus.partial : InvoiceStatus.paid;
                         mAcess.updateInvoiceStatus(invoice.getId(), invoiceStatus);
 

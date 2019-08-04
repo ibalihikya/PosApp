@@ -6,6 +6,7 @@ import ca.odell.glazedlists.GlazedLists;
 import ca.odell.glazedlists.TextFilterator;
 import ca.odell.glazedlists.gui.TableFormat;
 import ca.odell.glazedlists.swing.EventTableModel;
+import model.Direction;
 import model.Distributor;
 import model.Site;
 import model.StockItem;
@@ -30,13 +31,16 @@ public class DistributeDialog extends JDialog {
     private JTextField destQuantitytextField;
     private JPanel stockTransactionsPanel;
     private JTable stockTable;
+    private JButton stockAdjustmentButton;
+    private JButton cancelAdjustmentButton;
     private Distributor distributor;
     private static EventList stock;
     private static MySqlAccess mAcess;
+    private String userName;
 
 
 
-    public DistributeDialog(JFrame frame, String title, Distributor distributor, EventList stockItems, String serverIp) {
+    public DistributeDialog(JFrame frame, String title, Distributor distributor, EventList stockItems, String userName, String serverIp) {
         super(frame, title, true);
         setContentPane(contentPane);
         setModal(true);
@@ -46,6 +50,7 @@ public class DistributeDialog extends JDialog {
 
 
         this.distributor=distributor;
+        this.userName = userName;
 
         sourceQuantityTextField.setEditable(false);
         destQuantitytextField.setEditable(false);
@@ -97,7 +102,7 @@ public class DistributeDialog extends JDialog {
 //        storeTextField.setText(Double.toString(distributor.getStore_quantity()));
 //        shopTextField.setText(Double.toString(distributor.getShop_quantity()));
 
-        setMinimumSize(new Dimension(400,400));
+        setMinimumSize(new Dimension(600,600));
         pack();
         setLocationRelativeTo(frame);
         sourceComboBox.addActionListener(new ActionListener() {
@@ -130,6 +135,46 @@ public class DistributeDialog extends JDialog {
         });
 
         populateStockTable2();
+        stockAdjustmentButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                //this is an adjustment
+
+
+                for(int row=0; row<stockTable.getRowCount(); row++){
+
+                    try {
+                        //TableModel tableModel = stockTable.getModel();
+                        //int trid = (int) tableModel.getValueAt(row, 0);
+                        int trid = (int) stockTable.getModel().getValueAt(row, 0);
+                        StockItem currentStockItem = mAcess.getStockItem(trid);
+                        Double balance = (Double)stockTable.getModel().getValueAt(row,3);
+
+                        if(currentStockItem.getBalance()==balance)
+                            continue;
+
+                        StockItem stockItem = new StockItem();
+                        stockItem.setProductId(distributor.getProductId());
+                        stockItem.setLocation(currentStockItem.getLocation());
+                        stockItem.setBalance(balance);
+                        stockItem.setDirection(Direction.adj);
+                        stockItem.setQuantity(0);
+                        stockItem.setSource_dest(currentStockItem.getSource_dest());
+                        mAcess.adjustStock(userName, stockItem);
+                        dispose();
+
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }
+                }
+            }
+        });
+        cancelAdjustmentButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dispose();
+            }
+        });
     }
 
     private void onOK(EventList stockItems) {
@@ -195,10 +240,26 @@ public class DistributeDialog extends JDialog {
                 "balance", "dateCreated"};
         String[] stockTablecolumnLabels = new String[] {"Tr_id.","Product", "location", "Balance",
                 "Date"};
+        boolean [] editable = {false, false,false, true, false};
 
-        TableFormat stockTableFormat = GlazedLists.tableFormat(StockItem.class, stockItemPropertyNames, stockTablecolumnLabels);
+        TableFormat stockTableFormat = GlazedLists.tableFormat(StockItem.class, stockItemPropertyNames, stockTablecolumnLabels,editable);
         //stockTable.setModel(new EventTableModel(filteredStockItems,stockTableFormat));
 
         stockTable.setModel(new EventTableModel(stockItemsEventList,stockTableFormat));
+
+        //addStockTableModelListener();
     }
+
+//    private void addStockTableModelListener() {
+//        stockTable.getModel().addTableModelListener(new TableModelListener() {
+//            @Override
+//            public void tableChanged(TableModelEvent e) {
+//                int row = e.getFirstRow();
+//                int column = e.getColumn();
+//
+//
+//
+//            }
+//        });
+//    }
 }

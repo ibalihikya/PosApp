@@ -76,6 +76,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     private JButton defineProductButton;
     private JFormattedTextField tillNumberformattedTextField;
     private JButton editTillButton;
+    private JButton returnsButton;
 
     private static MySqlAccess mAcess;
     private CustomerTransaction customerTransaction;
@@ -113,8 +114,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     private Color accentColor;
     private static Color primaryColor;
 
-    private  boolean DEBUG = true; //for debugging getFormattedEditor function
-    NumberFormat doubleFormat;
+    private static boolean DEBUG = true; //for debugging getFormattedEditor function
+    private static NumberFormat doubleFormat;
 
     //private JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
 
@@ -147,6 +148,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         ImageIcon paymentIcon = createImageIcon("/images/ic_payment_red_18dp.png", "Payment");
         ImageIcon reprintIcon = createImageIcon("/images/ic_print_green_18dp.png", "Reprint receipt");
         ImageIcon defineProductIcon = createImageIcon("/images/ic_define_product.png", "Define product");
+        ImageIcon returnsIcon = createImageIcon("/images/ic_keyboard_return_18pt.png", "Receive Returns");
 
 
 
@@ -239,6 +241,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         creditCheckBox.setFocusable(false);
         invoiceTextField.setFocusable(false);
         defineProductButton.setFocusable(false);
+        returnsButton.setFocusable(false);
 
         removeTransactionButton.setEnabled(false); //should not be active when there are no paused transactions
 
@@ -408,6 +411,11 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         defineProductButton.setToolTipText("Add Product");
 
 
+        returnsButton.setIcon(returnsIcon);
+        returnsButton.setContentAreaFilled(false);
+        returnsButton.setToolTipText("Receive Returns");
+
+
 
 
 
@@ -535,44 +543,11 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
             public void keyTyped(KeyEvent e) {
 
                 //super.keyTyped(e);
-               // System.out.println("value after typed: " + cash);
-
-                //cashstr += e.getKeyChar();
-
 
             }
 
             @Override
             public void keyPressed(KeyEvent e) {
-                //cashformattedTextField.setText("");
-                //super.keyTyped(e);
-
-                //Integer.parseInt(Character.toString(e.getKeyChar()));
-                //cashstr += e.getKeyChar();
-                //cashformattedTextField.setValue(cashstr);
-                //System.out.println("cashstr: " + cashstr);
-
-                //if(!cashformattedTextField.getText().isEmpty()) {
-                    //cash = (double)getFormattedTextFieldValue(cashformattedTextField);
-                   // cash = Double.parseDouble(cashstr);
-                //}
-
-//                if(cash>0.0) {
-//                    cashformattedTextField.setText(String.format("%,.0f", cash));
-//                }
-
-
-
-//                cashstr += e.getKeyChar();
-//
-//                System.out.println("value after pressed: " + cashstr);
-//
-//                cash = Double.parseDouble(cashstr);
-//
-//                System.out.println("parsed: " + cash);
-//
-//                //cashformattedTextField.setText(String.format("%,.0f", cash));
-//                cashformattedTextField.setValue(cash);
 
             }
 
@@ -582,31 +557,12 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
                 if(e.getKeyCode()==KeyEvent.VK_ESCAPE){
                     KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-                    //cashformattedTextField.setValue(0);
                     cashformattedTextField.setValue(null);
                     cashformattedTextField.setFocusable(false);
                     fm.getActiveWindow().requestFocusInWindow();
                     barcode="";
 
                 }
-
-                //cashformattedTextField.setText("");
-
-
-
-
-//                if(!cashformattedTextField.getText().isEmpty()) {
-//                    cash = (double)getFormattedTextFieldValue(cashformattedTextField);
-//                    if(cash>0.0)
-//                        //cashformattedTextField.setValue(cash);
-//                        try {
-//                            cashformattedTextField.commitEdit();
-//                        } catch (ParseException e1) {
-//                            e1.printStackTrace();
-//                        }
-//                }
-//
-//                System.out.println("value after released: " + cash);
 
                 double cash = 0.0;
 
@@ -691,7 +647,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
             @Override
             public void actionPerformed(ActionEvent e) {
                 JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
-                PayDialog payDialog = new PayDialog(frame,header,serverIP);
+                PayDialog payDialog = new PayDialog(frame,header,userName,tillNumber,serverIP);
                 payDialog.setVisible(true);
             }
         });
@@ -747,6 +703,14 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
                 fm.getActiveWindow().requestFocusInWindow();
 
+            }
+        });
+        returnsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                ReturnsDialog returnsDialog = new ReturnsDialog(products,userName,serverIP);
+                returnsDialog.setMinimumSize(new Dimension(700,600));
+                returnsDialog.setVisible(true);
             }
         });
     }
@@ -1049,10 +1013,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
                 fm.getActiveWindow().requestFocusInWindow();
             }
-//            //TODO: if there is an exception what happens to this block
-//            model.setValueAt(newTotal,row,5);
-//            grandTotal = computeGrandTotal();
-//            totalFormattedTextField.setValue(grandTotal);
+
         }
         toModify = true;
     }
@@ -1094,7 +1055,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 cashformattedTextField.setText("");
                 //changeformattedTextField.setText("");
                 barcode="";
-            }else if(itemsTable.getRowCount()>0 && barcode=="" && creditCheckBox.isSelected()){ //Item sold on credit
+            }else if(itemsTable.getRowCount()>0 && barcode=="" && creditCheckBox.isSelected()
+                    && customerId !=0 ){ //Item sold on credit
                 submitTransaction(InvoiceStatus.unpaid);
                 barcode="";
             }
@@ -1492,7 +1454,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         }
     }
 
-    public Object getFormattedTextFieldValue(JFormattedTextField ftf)  {
+    public static Object getFormattedTextFieldValue(JFormattedTextField ftf)  {
 
             try {
                     ftf.commitEdit();

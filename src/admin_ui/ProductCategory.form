@@ -562,14 +562,15 @@
             <rowspec value="center:646px:noGrow"/>
             <rowspec value="top:4dlu:noGrow"/>
             <rowspec value="center:p:noGrow"/>
-            <colspec value="fill:449px:grow"/>
+            <colspec value="fill:d:grow"/>
+            <colspec value="left:4dlu:noGrow"/>
             <colspec value="fill:p:grow"/>
             <constraints>
               <tabbedpane title="Receiving Center"/>
             </constraints>
             <properties>
               <enabled value="true"/>
-              <visible value="true"/>
+              <visible value="false"/>
             </properties>
             <border type="none"/>
             <children>
@@ -579,7 +580,7 @@
                 <rowspec value="center:194px:grow"/>
                 <colspec value="fill:max(d;4px):grow"/>
                 <constraints>
-                  <grid row="0" column="1" row-span="3" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                  <grid row="0" column="2" row-span="3" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                   <forms defaultalign-vert="false"/>
                 </constraints>
                 <properties/>
@@ -690,9 +691,9 @@
                         <rowspec value="center:d:noGrow"/>
                         <colspec value="fill:55px:noGrow"/>
                         <colspec value="left:4dlu:noGrow"/>
-                        <colspec value="fill:p:noGrow"/>
+                        <colspec value="fill:d:grow"/>
                         <colspec value="left:4dlu:noGrow"/>
-                        <colspec value="fill:117px:noGrow"/>
+                        <colspec value="fill:d:noGrow"/>
                         <colspec value="left:4dlu:noGrow"/>
                         <colspec value="fill:max(p;4px):noGrow"/>
                         <colspec value="left:4dlu:noGrow"/>
@@ -721,13 +722,13 @@
                               <forms defaultalign-horz="false" defaultalign-vert="false"/>
                             </constraints>
                             <properties>
-                              <columns value="10"/>
+                              <columns value="20"/>
                             </properties>
                           </component>
                           <component id="dd0f2" class="javax.swing.JButton" binding="receiveGoodsButton" default-binding="true">
                             <constraints>
-                              <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
-                              <forms defaultalign-horz="false"/>
+                              <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                              <forms defaultalign-horz="false" defaultalign-vert="false"/>
                             </constraints>
                             <properties>
                               <text value="Receive Goods"/>
@@ -740,12 +741,13 @@
                             </constraints>
                             <properties>
                               <text value="Delete Transaction"/>
+                              <visible value="false"/>
                             </properties>
                           </component>
                           <component id="ff416" class="javax.swing.JButton" binding="paymentsButton" default-binding="true">
                             <constraints>
-                              <grid row="0" column="6" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
-                              <forms/>
+                              <grid row="0" column="6" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                              <forms defaultalign-vert="false"/>
                             </constraints>
                             <properties>
                               <text value="Pay | Adjust"/>
@@ -869,7 +871,6 @@
               <grid id="2f8c5" binding="leftSupplierPanel" layout-manager="FormLayout">
                 <rowspec value="center:346px:noGrow"/>
                 <rowspec value="center:p:noGrow"/>
-                <colspec value="fill:p:noGrow"/>
                 <colspec value="fill:max(d;4px):grow"/>
                 <constraints>
                   <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
@@ -1081,12 +1082,10 @@
                   <grid id="e62ba" binding="supplierListPanel" layout-manager="FormLayout">
                     <rowspec value="center:max(d;4px):noGrow"/>
                     <rowspec value="top:4dlu:noGrow"/>
-                    <rowspec value="center:max(d;4px):noGrow"/>
-                    <rowspec value="top:4dlu:noGrow"/>
                     <rowspec value="fill:d:noGrow"/>
                     <colspec value="left:d:grow"/>
                     <constraints>
-                      <grid row="0" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                      <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                       <forms defaultalign-vert="false"/>
                     </constraints>
                     <properties/>
@@ -1094,7 +1093,7 @@
                     <children>
                       <scrollpane id="3156d" binding="suppliersScrollPane">
                         <constraints>
-                          <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                          <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                           <forms defaultalign-horz="false" defaultalign-vert="false"/>
                         </constraints>
                         <properties/>
@@ -1114,10 +1113,10 @@
                         <colspec value="left:4dlu:noGrow"/>
                         <colspec value="fill:d:noGrow"/>
                         <colspec value="left:4dlu:noGrow"/>
-                        <colspec value="fill:max(d;4px):grow"/>
+                        <colspec value="fill:max(p;4px):noGrow"/>
                         <constraints>
                           <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
-                          <forms/>
+                          <forms defaultalign-horz="false"/>
                         </constraints>
                         <properties/>
                         <border type="none"/>
@@ -1153,16 +1152,6 @@
                           </component>
                         </children>
                       </grid>
-                      <grid id="1f1" binding="container" layout-manager="FormLayout">
-                        <rowspec value="center:d:grow"/>
-                        <constraints>
-                          <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
-                          <forms/>
-                        </constraints>
-                        <properties/>
-                        <border type="none"/>
-                        <children/>
-                      </grid>
                     </children>
                   </grid>
                 </children>
@@ -1173,7 +1162,7 @@
             <rowspec value="center:660px:noGrow"/>
             <colspec value="fill:p:grow"/>
             <colspec value="left:4dlu:noGrow"/>
-            <colspec value="fill:max(d;4px):noGrow"/>
+            <colspec value="fill:max(d;4px):grow"/>
             <constraints>
               <tabbedpane title="Distribution"/>
             </constraints>
@@ -1202,7 +1191,7 @@
                     <properties/>
                     <border type="empty" title="Distribution"/>
                     <children>
-                      <grid id="38247" layout-manager="FormLayout">
+                      <grid id="38247" binding="distributionfilterPanel" layout-manager="FormLayout">
                         <rowspec value="center:d:grow"/>
                         <colspec value="fill:d:noGrow"/>
                         <colspec value="left:4dlu:noGrow"/>
@@ -1236,13 +1225,13 @@
                               <columns value="25"/>
                             </properties>
                           </component>
-                          <component id="dcf1b" class="javax.swing.JButton" binding="unpackButton" default-binding="true">
+                          <component id="f24cc" class="javax.swing.JButton" binding="refreshButton1" default-binding="true">
                             <constraints>
-                              <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
-                              <forms defaultalign-vert="false"/>
+                              <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                              <forms/>
                             </constraints>
                             <properties>
-                              <text value="Unpack"/>
+                              <text value="Refresh"/>
                             </properties>
                           </component>
                         </children>
@@ -1396,13 +1385,13 @@
                               <text value="Search&gt;&gt;"/>
                             </properties>
                           </component>
-                          <component id="196c" class="javax.swing.JButton" binding="adjustStockButton" default-binding="true">
+                          <component id="a78e1" class="javax.swing.JButton" binding="adjustStockButton">
                             <constraints>
                               <grid row="0" column="14" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
                               <forms/>
                             </constraints>
                             <properties>
-                              <text value="Adjust Stock"/>
+                              <text value="Adjust"/>
                             </properties>
                           </component>
                         </children>
@@ -1439,8 +1428,6 @@
                   </grid>
                   <grid id="b2822" binding="leftBottomStockPanel" layout-manager="FormLayout">
                     <rowspec value="center:d:grow"/>
-                    <colspec value="left:p:noGrow"/>
-                    <colspec value="left:4dlu:noGrow"/>
                     <colspec value="fill:max(d;4px):noGrow"/>
                     <colspec value="left:4dlu:noGrow"/>
                     <colspec value="fill:max(p;4px):noGrow"/>
@@ -1449,22 +1436,8 @@
                       <forms defaultalign-horz="false" defaultalign-vert="false"/>
                     </constraints>
                     <properties/>
-                    <border type="empty" title="Refunds"/>
+                    <border type="empty"/>
                     <children>
-                      <scrollpane id="b89f7">
-                        <constraints>
-                          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
-                          <forms defaultalign-horz="false" defaultalign-vert="false"/>
-                        </constraints>
-                        <properties/>
-                        <border type="none"/>
-                        <children>
-                          <component id="3b161" class="javax.swing.JTable" binding="refundsTable">
-                            <constraints/>
-                            <properties/>
-                          </component>
-                        </children>
-                      </scrollpane>
                       <grid id="7e445" binding="locationPanel" layout-manager="FormLayout">
                         <rowspec value="center:d:noGrow"/>
                         <rowspec value="top:4dlu:noGrow"/>
@@ -1475,7 +1448,7 @@
                         <rowspec value="bottom:max(d;4px):grow"/>
                         <colspec value="fill:d:grow"/>
                         <constraints>
-                          <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                           <forms defaultalign-vert="false"/>
                         </constraints>
                         <properties/>
@@ -1523,7 +1496,7 @@
                         <rowspec value="center:d:grow"/>
                         <colspec value="fill:d:grow"/>
                         <constraints>
-                          <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                          <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                           <forms defaultalign-vert="false"/>
                         </constraints>
                         <properties>
@@ -1923,6 +1896,7 @@
                             </constraints>
                             <properties>
                               <text value="Customer"/>
+                              <visible value="false"/>
                             </properties>
                           </component>
                           <component id="4bc13" class="javax.swing.JComboBox" binding="customerComboBox">
@@ -2286,6 +2260,8 @@
                     <rowspec value="center:max(d;4px):noGrow"/>
                     <colspec value="fill:d:noGrow"/>
                     <colspec value="left:4dlu:noGrow"/>
+                    <colspec value="fill:max(d;4px):grow"/>
+                    <colspec value="left:4dlu:noGrow"/>
                     <colspec value="fill:max(d;4px):noGrow"/>
                     <constraints>
                       <grid row="10" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
@@ -2313,6 +2289,15 @@
                           <visible value="false"/>
                         </properties>
                       </component>
+                      <component id="e5a53" class="javax.swing.JButton" binding="viewDeletedSalesButton" default-binding="true">
+                        <constraints>
+                          <grid row="2" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                          <forms/>
+                        </constraints>
+                        <properties>
+                          <text value="View Deleted Sales"/>
+                        </properties>
+                      </component>
                     </children>
                   </grid>
                 </children>
@@ -2337,7 +2322,11 @@
                     <colspec value="left:4dlu:noGrow"/>
                     <colspec value="fill:max(d;4px):noGrow"/>
                     <colspec value="left:4dlu:noGrow"/>
-                    <colspec value="fill:d:grow"/>
+                    <colspec value="fill:d:noGrow"/>
+                    <colspec value="left:4dlu:grow"/>
+                    <colspec value="fill:max(d;4px):noGrow"/>
+                    <colspec value="left:4dlu:noGrow"/>
+                    <colspec value="fill:d:noGrow"/>
                     <constraints>
                       <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                       <forms/>
@@ -2382,6 +2371,26 @@
                       <component id="ab6ce" class="javax.swing.JFormattedTextField" binding="marginformattedTextField">
                         <constraints>
                           <grid row="0" column="6" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="0" indent="0" use-parent-layout="false">
+                            <preferred-size width="150" height="-1"/>
+                          </grid>
+                          <forms defaultalign-horz="false"/>
+                        </constraints>
+                        <properties>
+                          <columns value="8"/>
+                        </properties>
+                      </component>
+                      <component id="611c5" class="javax.swing.JLabel">
+                        <constraints>
+                          <grid row="0" column="8" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                          <forms/>
+                        </constraints>
+                        <properties>
+                          <text value="Deleted Sales:"/>
+                        </properties>
+                      </component>
+                      <component id="bcddd" class="javax.swing.JFormattedTextField" binding="deletedSalesFormattedTextField">
+                        <constraints>
+                          <grid row="0" column="10" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
                             <preferred-size width="150" height="-1"/>
                           </grid>
                           <forms defaultalign-horz="false"/>
@@ -2491,7 +2500,15 @@
                 </children>
               </grid>
               <grid id="c7d35" binding="receiptsLeftPanel" layout-manager="FormLayout">
-                <rowspec value="center:d:grow"/>
+                <rowspec value="center:d:noGrow"/>
+                <rowspec value="top:138dlu:noGrow"/>
+                <rowspec value="center:max(d;4px):noGrow"/>
+                <rowspec value="top:4dlu:noGrow"/>
+                <rowspec value="center:max(d;4px):noGrow"/>
+                <rowspec value="top:4dlu:noGrow"/>
+                <rowspec value="center:max(d;4px):noGrow"/>
+                <rowspec value="top:4dlu:noGrow"/>
+                <rowspec value="center:max(d;4px):grow"/>
                 <colspec value="fill:d:grow"/>
                 <constraints>
                   <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="8" fill="2" indent="0" use-parent-layout="false"/>
@@ -2597,6 +2614,121 @@
                           <text value="Search&gt;&gt;"/>
                         </properties>
                       </component>
+                    </children>
+                  </grid>
+                  <component id="f7d1b" class="javax.swing.JLabel" binding="keyLabel1">
+                    <constraints>
+                      <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                      <forms/>
+                    </constraints>
+                    <properties>
+                      <text value="*Some items deleted from invoice but cash received not changed."/>
+                    </properties>
+                  </component>
+                  <component id="60dc9" class="javax.swing.JLabel" binding="keyLabel2">
+                    <constraints>
+                      <grid row="6" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                      <forms/>
+                    </constraints>
+                    <properties>
+                      <text value="*Invoice date different from receipt date"/>
+                    </properties>
+                  </component>
+                  <component id="6e3eb" class="javax.swing.JLabel">
+                    <constraints>
+                      <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+                      <forms defaultalign-horz="false" defaultalign-vert="false"/>
+                    </constraints>
+                    <properties>
+                      <text value="Key"/>
+                    </properties>
+                  </component>
+                </children>
+              </grid>
+            </children>
+          </grid>
+          <grid id="b261c" layout-manager="FormLayout">
+            <rowspec value="center:d:grow"/>
+            <colspec value="fill:659px:noGrow"/>
+            <constraints>
+              <tabbedpane title="Returns"/>
+            </constraints>
+            <properties/>
+            <border type="none"/>
+            <children>
+              <grid id="ebadb" binding="leftReturnsPanel" layout-manager="FormLayout">
+                <rowspec value="center:306px:noGrow"/>
+                <rowspec value="top:4dlu:noGrow"/>
+                <rowspec value="center:141px:grow"/>
+                <colspec value="fill:p:grow"/>
+                <constraints>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                  <forms defaultalign-vert="false"/>
+                </constraints>
+                <properties/>
+                <border type="none"/>
+                <children>
+                  <grid id="fc218" binding="returnsLeftTopPanel" layout-manager="FormLayout">
+                    <rowspec value="center:max(d;4px):noGrow"/>
+                    <rowspec value="top:4dlu:noGrow"/>
+                    <rowspec value="center:d:grow"/>
+                    <colspec value="fill:d:grow"/>
+                    <constraints>
+                      <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                      <forms defaultalign-vert="false"/>
+                    </constraints>
+                    <properties/>
+                    <border type="none" title="Returns"/>
+                    <children>
+                      <scrollpane id="269fd">
+                        <constraints>
+                          <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                          <forms defaultalign-horz="false" defaultalign-vert="false"/>
+                        </constraints>
+                        <properties/>
+                        <border type="none"/>
+                        <children>
+                          <component id="a4a83" class="javax.swing.JTable" binding="refundsTable">
+                            <constraints/>
+                            <properties/>
+                          </component>
+                        </children>
+                      </scrollpane>
+                      <component id="4fb9" class="javax.swing.JButton" binding="refreshReturnsButton">
+                        <constraints>
+                          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                          <forms defaultalign-horz="false"/>
+                        </constraints>
+                        <properties>
+                          <text value="Refresh"/>
+                        </properties>
+                      </component>
+                    </children>
+                  </grid>
+                  <grid id="c6caa" layout-manager="FormLayout">
+                    <rowspec value="center:d:grow"/>
+                    <colspec value="fill:d:grow"/>
+                    <constraints>
+                      <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                      <forms defaultalign-vert="false"/>
+                    </constraints>
+                    <properties/>
+                    <border type="none"/>
+                    <children>
+                      <scrollpane id="26340">
+                        <constraints>
+                          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                          <forms defaultalign-horz="false" defaultalign-vert="false"/>
+                        </constraints>
+                        <properties/>
+                        <border type="none" title="Details"/>
+                        <children>
+                          <component id="14840" class="javax.swing.JTable" binding="returnDetailsTable">
+                            <constraints/>
+                            <properties/>
+                          </component>
+                        </children>
+                      </scrollpane>
                     </children>
                   </grid>
                 </children>
