@@ -25,6 +25,8 @@ public class SettingsParser {
     private File inputFile;
     private String serverIp;
     private int default_stock_destination; //where stock received is initially stored
+    private boolean checkStock;
+    private boolean printer; //enable or disbable printer
 
     public SettingsParser(String settingsFilePath) {
         try {
@@ -67,6 +69,14 @@ public class SettingsParser {
                             .getTextContent();
                     till_no = Integer.parseInt (eElement
                             .getElementsByTagName("till_no")
+                            .item(0)
+                            .getTextContent());
+                    checkStock = Boolean.parseBoolean (eElement
+                            .getElementsByTagName("check_stock")
+                            .item(0)
+                            .getTextContent());
+                    printer = Boolean.parseBoolean (eElement
+                            .getElementsByTagName("printer")
                             .item(0)
                             .getTextContent());
                 }
@@ -124,6 +134,25 @@ public class SettingsParser {
 
     public int getTillNumber() {
         return till_no;
+    }
+
+    public boolean isCheckStock() {
+        return checkStock;
+    }
+
+    public void setCheckStock(boolean checkStock) {
+        updateSettings("header","check_stock", Boolean.toString(checkStock));
+        this.checkStock = checkStock;
+
+    }
+
+    public boolean isPrinter() {
+        return printer;
+    }
+
+    public void setPrinter(boolean printer) {
+        updateSettings("header","printer", Boolean.toString(printer));
+        this.printer = printer;
     }
 
     public void setBusinessName(String businessName) {

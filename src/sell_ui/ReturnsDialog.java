@@ -54,9 +54,9 @@ public class ReturnsDialog extends JDialog {
             "Total Price",
             "product id"};
 
-    public ReturnsDialog(EventList products, String loggedinUser, String serverIp) {
+    public ReturnsDialog(JFrame frame,EventList products, String loggedinUser, String serverIp) {
+        super(frame, true);
         setContentPane(contentPane);
-        setModal(true);
         getRootPane().setDefaultButton(buttonOK);
         setTitle("Returns");
 
@@ -173,7 +173,7 @@ public class ReturnsDialog extends JDialog {
         });
 
         pack();
-        //setLocationRelativeTo(null);
+
         setLocation(new Point(300,30));
         removeItemButton.addActionListener(new ActionListener() {
             @Override

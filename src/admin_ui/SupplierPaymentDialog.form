@@ -154,7 +154,8 @@
                 <properties>
                   <model>
                     <item value="Payment"/>
-                    <item value="Adjustment"/>
+                    <item value="reduce_balance"/>
+                    <item value="increase_balance"/>
                   </model>
                 </properties>
               </component>

@@ -7,7 +7,8 @@ public class Transaction {
     protected ArrayList<Item> items;
     protected String userName;  //of cashier
     protected int sellerId; //of supplier
-    protected int receiptId; //should be changed to id when receipt table in db is renamed to invoice and transaction table is renamed to item table
+    protected int receiptId; //should be changed to invoice_id
+    protected  int recId; // this is the true receiptId
     protected double amount;
     protected String date_created;
     protected String date_modified;
@@ -35,6 +36,14 @@ public class Transaction {
 
     public void setSellerId(int sellerId) {
         this.sellerId = sellerId;
+    }
+
+    public int getRecId() {
+        return recId;
+    }
+
+    public void setRecId(int recId) {
+        this.recId = recId;
     }
 
     public double getAmount() {

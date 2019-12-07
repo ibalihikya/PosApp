@@ -39,8 +39,8 @@ CREATE FUNCTION public.add_product_to_distribution_table() RETURNS trigger
 DECLARE
    BEGIN
 IF(TG_OP = 'INSERT') THEN
-insert into distribution (product_id) values (NEW.productid);
-insert into stock (productid, quantity,location_id, direction,source_dest_id) values (NEW.productid,0,2,'in',2);
+	insert into distribution (product_id) values (NEW.productid);
+	insert into stock (productid, quantity,location_id, direction,source_dest_id) values (NEW.productid,0,2,'in',2);
 RETURN NEW;
 END IF;
 END;
@@ -113,22 +113,6 @@ $$;
 ALTER FUNCTION public.changestock() OWNER TO postgres;
 
 --
--- Name: compute_margin(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.compute_margin() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-   NEW.margin = NEW.price - NEW.costprice;
-   RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.compute_margin() OWNER TO postgres;
-
---
 -- Name: compute_total_price(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -151,14 +135,66 @@ ALTER FUNCTION public.compute_total_price() OWNER TO postgres;
 CREATE FUNCTION public.compute_transaction_margin() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+	DECLARE
+   vat double precision;
+   cost double precision;
 BEGIN
-   NEW.margin = NEW.total - (SELECT costprice from product WHERE productid = NEW.productid) * NEW.quantity;
+	SELECT vat_amount into vat from product WHERE productid = NEW.productid;
+	SELECT costprice into cost from product WHERE productid = NEW.productid;
+	
+   NEW.margin = NEW.total - (vat + cost) * NEW.quantity;
+   NEW.vat_amount = vat * NEW.quantity;
    RETURN NEW;
 END;
 $$;
 
 
 ALTER FUNCTION public.compute_transaction_margin() OWNER TO postgres;
+
+--
+-- Name: compute_vat_margin(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.compute_vat_margin() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+	DECLARE
+	vat double precision;
+BEGIN
+IF(NEW.vatable = true) THEN
+   vat = NEW.costprice*0.18;
+   NEW.vat_amount = vat;
+   NEW.margin = NEW.price - NEW.costprice - vat;
+ELSIF(NEW.vatable = false) THEN
+	NEW.vat_amount = 0;
+   NEW.margin = NEW.price - NEW.costprice;
+END IF;
+RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.compute_vat_margin() OWNER TO postgres;
+
+--
+-- Name: compute_vat_margin_retrospectively(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.compute_vat_margin_retrospectively() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+cost double precision;
+BEGIN
+SELECT costprice into cost from product WHERE productid = OLD.productid;
+
+   NEW.margin = OLD.total - NEW.vat_amount - (cost * OLD.quantity);
+   RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.compute_vat_margin_retrospectively() OWNER TO postgres;
 
 --
 -- Name: decrease_invoice_amount(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -169,31 +205,66 @@ CREATE FUNCTION public.decrease_invoice_amount() RETURNS trigger
     AS $$
    DECLARE
    customer_balance double precision;
-   cus_id integer;
-   rec_id integer;
-   rec_bal double precision;
+   rec receipt%ROWTYPE;
+   inv invoice%ROWTYPE;
+   deductor double precision; -- initialized to OLD.Total and used in the loop to reduce receipt balance
    BEGIN   
 
-   
-select customer_id INTO cus_id from invoice where id = OLD.invoice_id; 
-   
-select balance INTO customer_balance from customer_statement where customer_id = cus_id
+      
+select balance INTO customer_balance from customer_statement where customer_id = inv.customer_id
 order by date_entered desc limit 1; 
+deductor = OLD.total;
 
-select id INTO rec_id from receipt where invoice_id= OLD.invoice_id ORDER BY date_created DESC limit 1;
 
 IF(customer_balance-OLD.total<=0) THEN
+IF(inv.amount-OLD.total>0) THEN
 update invoice set amount = amount - OLD.total, status='paid' where id = OLD.invoice_id; -- to prevent this invoice from appearing in payment dialog
 ELSE
-update invoice set amount = amount - OLD.total where id = OLD.invoice_id;
-
-IF(cus_id!=NULL) THEN
-update receipt set description='item deleted', balance = balance-OLD.total where id = rec_id ;
+update invoice set amount = 0, status='paid' where id = OLD.invoice_id; -- to prevent this invoice from appearing in payment dialog
+END IF;
 ELSE
-update receipt set description='item deleted' where id = rec_id ;
+IF(inv.amount-OLD.total>0) THEN
+update invoice set amount = amount - OLD.total where id = OLD.invoice_id;
+ELSE
+update invoice set amount = 0 where id = OLD.invoice_id;
+END IF;
+END IF; 
+
+
+IF(inv.customer_id IS NOT NULL) THEN
+
+FOR rec IN 
+select * from receipt where invoice_id= OLD.invoice_id ORDER BY date_created DESC
+LOOP
+IF(rec.cash_received-deductor-rec.change <=0) THEN
+delete from receipt where id = rec.id;
+deductor= deductor-rec.cash_received;
+ELSE
+IF(rec.balance-deductor>0) THEN
+update receipt set description='item deleted', balance = balance-deductor, cash_received = cash_received-deductor where id = rec.id ;
+ELSE
+update receipt set description='item deleted', balance = 0.0, cash_received = cash_received-deductor where id = rec.id ;
+END IF;
+EXIT;
 END IF;
 
+END LOOP;
+
+ELSE
+
+FOR rec IN 
+select * from receipt where invoice_id= OLD.invoice_id ORDER BY date_created DESC
+LOOP
+IF(rec.cash_received-deductor-rec.change <=0) THEN
+delete from receipt where id = rec.id;
+deductor= deductor-rec.cash_received;
+ELSE
+update receipt set description='item deleted' , cash_received = cash_received-deductor where id = rec.id ;
+EXIT;
 END IF;
+END LOOP;
+END IF;
+
 
 RETURN NEW;
    END
@@ -264,21 +335,19 @@ CREATE FUNCTION public.update_balance() RETURNS trigger
 select balance INTO supplier_balance from stransactions where supplier_id = NEW.supplier_id
   AND id != NEW.id order by date_entered desc limit 1;
 IF(supplier_balance IS NOT NULL) THEN
-	IF( NEW.transaction_type = 'd' ) THEN
-	  UPDATE stransactions SET balance = supplier_balance  + NEW.amount WHERE id = NEW.id;
-	  RETURN NEW;
-	ELSE
-	--do not allow (supplier_balance - NEW.amount) < 0 which will introduce negative balance
-	  IF(supplier_balance >= NEW.amount) THEN
-		UPDATE stransactions SET balance = supplier_balance - NEW.amount WHERE id = NEW.id;
-	  END IF;
-	  RETURN NEW;
-	END IF;
+IF( NEW.transaction_type = 'd' ) THEN
+  UPDATE stransactions SET balance = supplier_balance  + NEW.amount WHERE id = NEW.id;  
+ELSIF((NEW.transaction_type = 'r' OR NEW.transaction_type = 'p') AND supplier_balance >= NEW.amount) THEN -- adjust reduce
+UPDATE stransactions SET balance = supplier_balance - NEW.amount WHERE id = NEW.id;
+ELSIF ( NEW.transaction_type = 'i') THEN -- adjust increase
+UPDATE stransactions SET balance = supplier_balance + NEW.amount WHERE id = NEW.id;
+END IF;
+RETURN NEW;
 ELSE
-	IF( NEW.transaction_type = 'd' ) THEN
-	  UPDATE stransactions SET balance =  NEW.amount WHERE id = NEW.id;
-	  RETURN NEW;
-	END IF;
+IF( NEW.transaction_type = 'd' ) THEN
+  UPDATE stransactions SET balance =  NEW.amount WHERE id = NEW.id;
+  RETURN NEW;
+END IF;
 END IF;
    END
 $$;
@@ -379,20 +448,20 @@ select balance INTO customer_balance from customer_statement where customer_id =
 order by date_entered desc limit 1; 
 IF(customer_balance IS NOT NULL) THEN 
     IF(customer_balance-amount_delta>0)THEN
-customer_balance=customer_balance-amount_delta;
+		customer_balance=customer_balance-amount_delta;
+	ELSE
+		customer_balance=0;
+	END IF;
+		
+	insert into customer_statement (customer_id, amount, type, balance) values 
+	(OLD.customer_id, amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
+	insert into statement_invoice (statement_id, invoice_id) values (statement_no, OLD.id);
+	RETURN NEW;
 ELSE
-customer_balance=0;
-END IF;
-
-insert into customer_statement (customer_id, amount, type, balance) values 
-(OLD.customer_id, amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
-insert into statement_invoice (statement_id, invoice_id) values (statement_no, OLD.id);
-RETURN NEW;
-ELSE
-select balance INTO customer_balance from customer_statement where id = statement_no ;
-insert into customer_statement (amount, type, balance) values 
-(amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
-RETURN NEW;
+	select balance INTO customer_balance from customer_statement where id = statement_no ;
+	insert into customer_statement (amount, type, balance) values 
+	(amount_delta, 'Del', customer_balance) RETURNING id INTO statement_no;
+	RETURN NEW;
 END IF;
 ELSE
 RETURN NEW;
@@ -484,21 +553,21 @@ select balance INTO stock_balance from stock where productid = NEW.productid
   AND transactionid != NEW.transactionid AND location_id = NEW.location_id order by datecreated desc limit 1;
   
 IF(NEW.direction!='adj') THEN
+	
+	IF(stock_balance IS NOT NULL) THEN
 
-IF(stock_balance IS NOT NULL) THEN
-
-IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
-  UPDATE stock SET balance = stock_balance  + NEW.quantity WHERE transactionid = NEW.transactionid;
-ELSE
-  IF(stock_balance - NEW.quantity >=0.0) THEN
-UPDATE stock SET balance = stock_balance - NEW.quantity WHERE transactionid = NEW.transactionid;
- END IF;
-END IF;
-ELSE
-IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
-  UPDATE stock SET balance =  NEW.quantity WHERE transactionid = NEW.transactionid;
-END IF;
-END IF;
+		IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
+		  UPDATE stock SET balance = stock_balance  + NEW.quantity WHERE transactionid = NEW.transactionid;
+		ELSE
+		  IF(stock_balance - NEW.quantity >=0.0) THEN
+			UPDATE stock SET balance = stock_balance - NEW.quantity WHERE transactionid = NEW.transactionid;
+		 END IF;
+		END IF;
+	ELSE
+		IF( NEW.direction = 'in' OR NEW.direction = 'up') THEN
+		  UPDATE stock SET balance =  NEW.quantity WHERE transactionid = NEW.transactionid;
+		END IF;
+	END IF;
 END IF;
 SELECT sum(balance) INTO q from (select * from stock where transactionid in (select max(transactionid) from stock  group by (location_id, productid) ) AND productid=NEW.productid) as sub ;
 UPDATE distribution SET quantity = q WHERE product_id = NEW.productid;
@@ -586,7 +655,8 @@ SET default_with_oids = false;
 CREATE TABLE public.category (
     categoryid integer NOT NULL,
     categoryname character varying(100) NOT NULL,
-    description character varying(100)
+    description character varying(100),
+    CONSTRAINT categoryname_chk CHECK ((char_length((categoryname)::text) >= 3))
 );
 
 
@@ -839,6 +909,7 @@ CREATE TABLE public.item (
     margin double precision DEFAULT 0 NOT NULL,
     date_entered timestamp without time zone DEFAULT now() NOT NULL,
     lastmodifieddate timestamp without time zone DEFAULT now() NOT NULL,
+    vat_amount double precision DEFAULT 0.0 NOT NULL,
     CONSTRAINT discount_nonnegative CHECK ((discount >= (0)::double precision)),
     CONSTRAINT margin_nonnegative CHECK ((margin >= (0)::double precision)),
     CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
@@ -902,10 +973,13 @@ CREATE TABLE public.product (
     costprice double precision DEFAULT 0 NOT NULL,
     margin double precision DEFAULT 0 NOT NULL,
     stock_low_threshold double precision DEFAULT 0.0 NOT NULL,
+    vat_amount double precision DEFAULT 0.0 NOT NULL,
+    vatable boolean DEFAULT false NOT NULL,
     CONSTRAINT costprice_nonnegative CHECK ((costprice >= (0)::double precision)),
     CONSTRAINT margin_nonnegative CHECK ((margin >= (0)::double precision)),
     CONSTRAINT price_nonnegative CHECK ((price >= (0)::double precision)),
-    CONSTRAINT stock_low_threshold_nonnegative CHECK ((stock_low_threshold >= (0)::double precision))
+    CONSTRAINT stock_low_threshold_nonnegative CHECK ((stock_low_threshold >= (0)::double precision)),
+    CONSTRAINT vat_nonnegative CHECK ((vat_amount >= (0)::double precision))
 );
 
 
@@ -1202,7 +1276,7 @@ CREATE TABLE public.stransactions (
     supplier_id integer NOT NULL,
     CONSTRAINT amount_nonnegative CHECK ((amount >= (0)::double precision)),
     CONSTRAINT balance_nonnegative CHECK ((balance >= (0)::double precision)),
-    CONSTRAINT stransactions_transaction_type_check CHECK ((transaction_type = ANY (ARRAY['d'::bpchar, 'p'::bpchar, 'a'::bpchar])))
+    CONSTRAINT stransactions_transaction_type_check CHECK ((transaction_type = ANY (ARRAY['d'::bpchar, 'p'::bpchar, 'r'::bpchar, 'i'::bpchar])))
 );
 
 
@@ -1856,17 +1930,24 @@ CREATE TRIGGER update_lastmodifieddate BEFORE UPDATE ON public.users FOR EACH RO
 
 
 --
--- Name: product update_margin; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER update_margin BEFORE INSERT OR UPDATE ON public.product FOR EACH ROW EXECUTE PROCEDURE public.compute_margin();
-
-
---
 -- Name: item update_margin; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
-CREATE TRIGGER update_margin BEFORE INSERT OR UPDATE ON public.item FOR EACH ROW EXECUTE PROCEDURE public.compute_transaction_margin();
+CREATE TRIGGER update_margin BEFORE INSERT ON public.item FOR EACH ROW EXECUTE PROCEDURE public.compute_transaction_margin();
+
+
+--
+-- Name: item update_margin_retrospectively; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_margin_retrospectively BEFORE UPDATE ON public.item FOR EACH ROW EXECUTE PROCEDURE public.compute_vat_margin_retrospectively();
+
+
+--
+-- Name: product update_vat_margin; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_vat_margin BEFORE INSERT OR UPDATE ON public.product FOR EACH ROW EXECUTE PROCEDURE public.compute_vat_margin();
 
 
 --
@@ -2014,14 +2095,6 @@ ALTER TABLE ONLY public.stock
 
 
 --
--- Name: stock stock_username_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.stock
-    ADD CONSTRAINT stock_username_fkey FOREIGN KEY (username) REFERENCES public.users(username) ON DELETE RESTRICT;
-
-
---
 -- Name: stransactions stransactions_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2043,14 +2116,6 @@ ALTER TABLE ONLY public.item
 
 ALTER TABLE ONLY public.deletedsales
     ADD CONSTRAINT transaction_productid_fkey FOREIGN KEY (productid) REFERENCES public.product(productid) ON DELETE CASCADE;
-
-
---
--- Name: deletedsales username_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.deletedsales
-    ADD CONSTRAINT username_fkey FOREIGN KEY (username) REFERENCES public.users(username) ON DELETE CASCADE;
 
 
 --

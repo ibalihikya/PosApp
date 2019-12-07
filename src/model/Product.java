@@ -18,6 +18,8 @@ public class Product {
     protected double stockLowThreshold;
     private double costprice;
     private  double price; // selling price
+    private boolean vatable;
+    private double vat;
     private double markup;
     protected String comment;
 //    protected Date dateCreated;
@@ -74,7 +76,21 @@ public class Product {
         this.lastModifiedDate = lastModifiedDate;
     }
 
+    public boolean isVatable() {
+        return vatable;
+    }
 
+    public void setVatable(boolean vatable) {
+        this.vatable = vatable;
+    }
+
+    public double getVat() {
+        return vat;
+    }
+
+    public void setVat(double vat) {
+        this.vat = vat;
+    }
 
     public int getProductId() {
         return productId;

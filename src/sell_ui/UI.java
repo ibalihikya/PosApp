@@ -35,8 +35,11 @@ import java.awt.print.PrinterJob;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
@@ -77,6 +80,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     private JFormattedTextField tillNumberformattedTextField;
     private JButton editTillButton;
     private JButton returnsButton;
+    private JCheckBox checkStockCheckBox;
+    private JButton printerButton;
+    private JButton settingsButton;
 
     private static MySqlAccess mAcess;
     private CustomerTransaction customerTransaction;
@@ -112,6 +118,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     private Color textColor;
     private Color lightgray;
     private Color accentColor;
+    private Color printerEnabledColor;
+    private Color printerDisabledColor;
+
     private static Color primaryColor;
 
     private static boolean DEBUG = true; //for debugging getFormattedEditor function
@@ -149,6 +158,8 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         ImageIcon reprintIcon = createImageIcon("/images/ic_print_green_18dp.png", "Reprint receipt");
         ImageIcon defineProductIcon = createImageIcon("/images/ic_define_product.png", "Define product");
         ImageIcon returnsIcon = createImageIcon("/images/ic_keyboard_return_18pt.png", "Receive Returns");
+        ImageIcon settingsIcon = createImageIcon("/images/ic_settings_black_18dp.png", "Settings");
+
 
 
 
@@ -169,6 +180,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         this.serverIP=settingsParser.getServerIp();
 
         tillNumber = settingsParser.getTillNumber();
+
+        checkStockCheckBox.setSelected(settingsParser.isCheckStock());
+
 
         //TODO: remove duplication of Header and ReceiptHeader Classes
         header = new Header();
@@ -215,6 +229,7 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
         if(!userlevel.equals("admin")){
             editTillButton.setVisible(false);
+            checkStockCheckBox.setVisible(false);
         }
 
         editTillButton.setToolTipText("Edit Till number");
@@ -242,6 +257,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         invoiceTextField.setFocusable(false);
         defineProductButton.setFocusable(false);
         returnsButton.setFocusable(false);
+        checkStockCheckBox.setFocusable(false);
+        printerButton.setFocusable(false);
+        settingsButton.setFocusable(false);
 
         removeTransactionButton.setEnabled(false); //should not be active when there are no paused transactions
 
@@ -257,6 +275,11 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         Color dividerColor = Color.decode("#BDBDBD");
         Color primaryDarkColor = Color.decode("#616161");
         Color panelBackgroundColor = new Color(235, 245, 251);
+        printerEnabledColor = new Color(24, 227, 13);
+        printerDisabledColor = new Color(227, 227, 227);
+
+        Color printButtonColor =  settingsParser.isPrinter()?printerEnabledColor:printerDisabledColor;
+        printerButton.setBackground(printButtonColor);
 
 
         //textColor = Color.decode("#FFFFFF");
@@ -414,6 +437,10 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         returnsButton.setIcon(returnsIcon);
         returnsButton.setContentAreaFilled(false);
         returnsButton.setToolTipText("Receive Returns");
+
+        settingsButton.setIcon(settingsIcon);
+        settingsButton.setContentAreaFilled(false);
+        settingsButton.setToolTipText("Settings");
 
 
 
@@ -708,9 +735,34 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
         returnsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ReturnsDialog returnsDialog = new ReturnsDialog(products,userName,serverIP);
+                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
+                ReturnsDialog returnsDialog = new ReturnsDialog(frame, products,userName,serverIP);
                 returnsDialog.setMinimumSize(new Dimension(700,600));
                 returnsDialog.setVisible(true);
+            }
+        });
+        checkStockCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                settingsParser.setCheckStock(checkStockCheckBox.isSelected());
+            }
+        });
+        printerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                Color printButtonColor =  settingsParser.isPrinter()?printerDisabledColor:printerEnabledColor;
+                settingsParser.setPrinter(!settingsParser.isPrinter());
+                printerButton.setBackground(printButtonColor);
+            }
+        });
+        settingsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
+                SettingsDialog settingsDialog = new SettingsDialog(frame);
+                settingsDialog.setMinimumSize(new Dimension(600,300));
+                settingsDialog.setVisible(true);
             }
         });
     }
@@ -963,21 +1015,51 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
     @Override
     public void tableChanged(TableModelEvent e) {
 
-
         int row = e.getFirstRow();
         int column = e.getColumn();
+        boolean editable = true;
         if(column != -1 && column !=5 && toModify){//-1 to avoid updating non existent column when adding first row;
             // -5 to prevent cyclic updates when total column is updated (leading to stackoverflow error)
             ItemsTableModel model = (ItemsTableModel)e.getSource();
-            //int quantity = (int) model.getValueAt(row, 2);
             Double quantity = (Double) model.getValueAt(row, 2);
             Double price = (Double) model.getValueAt(row,4);
             Double newPrice = 0.0;
             Double newTotal = 0.0;
 
+
             try {
+
                 int productId = (int)model.getValueAt(row,6);
                 Product product = mAcess.getProduct(productId);
+                double quantityInStock = mAcess.getQuantityInStock(productId,new Site(2));
+
+                //check for duplicate products to get totalItemQuantity
+                int prodId = 0;
+                double totalItemQuantity = 0.0;
+                for( Vector<Object> rowx : (Vector<Vector<Object>>)itemsTableModel.getData()){
+                    prodId = (int)rowx.elementAt(6);
+                    if(prodId == productId ){
+                        totalItemQuantity += (Double) rowx.elementAt(2);
+                    }
+                }
+
+
+
+                if((quantityInStock<totalItemQuantity) && settingsParser.isCheckStock()){
+                    JOptionPane.showMessageDialog(topFrame,"Quantity entered " + totalItemQuantity + " is greater than available stock "
+                                    + quantityInStock,
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    toModify=false;
+
+                    grandTotal=grandTotal-(double)model.getValueAt(row,5);
+                    model.setValueAt(0.0, row, 2);
+                    model.setValueAt(0.0,row,5);
+
+                    totalFormattedTextField.setValue(grandTotal);
+                    return;
+
+                }
+
                 if(quantity < 1) {
                     if(column !=4) {
                         newPrice = quantity * product.getPrice();
@@ -990,12 +1072,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 }else {
                     toModify = false;
                     if(column !=4) {
-                        //model.setValueAt(product.getPrice(), row, 4);
-                        //newTotal = quantity * product.getPrice();
                         double pricex = (Double) model.getValueAt(row, 4);
                         newTotal = quantity * pricex;
                     }else {
-                        //model.setValueAt(newPrice,row,4);
                         newTotal = quantity * price;
                     }
 
@@ -1009,7 +1088,9 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
                 e1.printStackTrace();
             } catch (ClassNotFoundException e1) {
                 e1.printStackTrace();
-            }finally {
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            } finally {
                 KeyboardFocusManager fm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
                 fm.getActiveWindow().requestFocusInWindow();
             }
@@ -1080,19 +1161,69 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
     private void submitTransaction(InvoiceStatus invoiceStatus) {
         JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
+        Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
+        String time  = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
+        receiptHeader.setTime(time);
         try {
 
 
+            String products = "(";
             for( Vector<Object> row : (Vector<Vector<Object>>)itemsTableModel.getData()){
                 Item item = new Item();
                 item.setProductName((String)row.elementAt(1));
                 item.setQuantity((Double)row.elementAt(2));
                 item.setUnits((String)row.elementAt(3));
                 item.setPrice((Double) row.elementAt(4));
-                item.setProductId((int)row.elementAt(6));
-                //item.setTotalPrice((Double)row.elementAt(5));
+
+                int productId = (int)row.elementAt(6);
+
+                item.setProductId(productId);
+
+                Product product = mAcess.getProduct(productId);
+                item.setVat_amount(product.getVat());
+
+                products = products + item.getProductId() + ",";
+
                 item.computeTotalPrice();
                 customerTransaction.addItem(item);
+            }
+
+
+
+            if(settingsParser.isCheckStock()) {
+
+                //remove last comma
+
+                if ((products != null) && (products.length() > 0)) {
+                    products = products.substring(0, products.length() - 1);
+                }
+
+                products = products + ")";
+
+                ArrayList<StockItem> stockItems = mAcess.getStock(products);
+
+                for (Item item : customerTransaction.getItems()) {
+                    //check for all occurences of an item in the items in the cart incase of duplicates and sum them up to get total item quantity
+                    double totalItemQuantity = 0.0;
+                    for (Item itemx : customerTransaction.getItems()) {
+                        if (item.getProductId() == itemx.getProductId()) {
+                            totalItemQuantity += itemx.getQuantity();
+                        }
+                    }
+
+                    for (StockItem stockItem : stockItems) {
+                        if (stockItem.getProductId() == item.getProductId()) {
+                            if (totalItemQuantity > stockItem.getBalance()) {
+                                customerTransaction = new CustomerTransaction(userName);
+                                JOptionPane.showMessageDialog(topFrame, "Quantity entered " + totalItemQuantity + " is greater than available stock "
+                                                + item.getProductName() + " " + stockItem.getBalance(),
+                                        "Error", JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            break;
+                        }
+                    }
+                }
             }
 
             double amount = (Double)totalFormattedTextField.getValue();
@@ -1161,24 +1292,27 @@ public class UI extends JFrame implements KeyListener,TableModelListener {
 
             ((ItemsTableModel) itemsTable.getModel()).clearTable();
 
-            PrinterJob job = PrinterJob.getPrinterJob();
-            PageFormat pf = job.defaultPage();
-            Paper paper = new Paper();
-            double margin = 3.6; // 1 tenth of an inch
-            paper.setImageableArea(margin, margin, paper.getWidth() - margin * 2, paper.getHeight()
-                    - margin * 2);
-            pf.setPaper(paper);
+            if(settingsParser.isPrinter()) {
 
-            job.setPrintable(new Printer(customerTransaction, receiptHeader,docType),pf);
+                PrinterJob job = PrinterJob.getPrinterJob();
+                PageFormat pf = job.defaultPage();
+                Paper paper = new Paper();
+                double margin = 3.6; // 1 tenth of an inch
+                paper.setImageableArea(margin, margin, paper.getWidth() - margin * 2, paper.getHeight()
+                        - margin * 2);
+                pf.setPaper(paper);
 
-            //boolean ok = job.printDialog();
-            if (true) {
-                try {
-                    //throw(new PrinterException("Printer not connected!"));
-                    job.print();
-                } catch (PrinterException ex) {
+                job.setPrintable(new Printer(customerTransaction, receiptHeader, docType), pf);
+
+                //boolean ok = job.printDialog();
+                if (true) {
+                    try {
+                        //throw(new PrinterException("Printer not connected!"));
+                        job.print();
+                    } catch (PrinterException ex) {
           /* The job did not successfully complete */
-                    System.out.println(ex);
+                        System.out.println(ex);
+                    }
                 }
             }
             //reset variables for next transaction

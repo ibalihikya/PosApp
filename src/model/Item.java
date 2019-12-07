@@ -28,6 +28,7 @@ public class Item  {
     private double amountPaid;
     private double balance;
     private String customerName;
+    private double vat_amount;
     private int till;
 
     public int getSellerid() {
@@ -94,7 +95,13 @@ public class Item  {
         this.transactionId = transactionId;
     }
 
+    public double getVat_amount() {
+        return vat_amount;
+    }
 
+    public void setVat_amount(double vat_amount) {
+        this.vat_amount = vat_amount;
+    }
 
     public Item(){
         this.discount = 0.0;
@@ -242,6 +249,7 @@ public class Item  {
                 quantity,
                 price,
                 totalPrice,
+                vat_amount,
                 margin,
                 invoiceNumber,
                 customerName,

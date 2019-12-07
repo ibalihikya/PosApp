@@ -56,7 +56,7 @@ public class MySqlAccess {
             dbConnect();
             preparedStatement = connect
                     .prepareStatement("insert into  " + databaseName + ".product values " +
-                            "(default,?,?, ?, ? , ?, ?,?,?,?,?,default,?)", Statement.RETURN_GENERATED_KEYS);
+                            "(default,?,?, ?, ? , ?, ?,?,?,?,?,default,?,default,?)", Statement.RETURN_GENERATED_KEYS);
 
             preparedStatement.setInt(1, product.getCategory().getCategoryId());
             preparedStatement.setString(2, product.getProductName());
@@ -69,6 +69,7 @@ public class MySqlAccess {
             preparedStatement.setString(9, product.getUnits());
             preparedStatement.setDouble(10, product.getCostprice());
             preparedStatement.setDouble(11, product.getStockLowThreshold());
+            preparedStatement.setBoolean(12, product.isVatable());
 
             preparedStatement.executeUpdate();
 
@@ -108,6 +109,8 @@ public class MySqlAccess {
                 product.setUnits(resultSet.getString("units"));
                 product.setStockLowThreshold(resultSet.getDouble("stock_low_threshold"));
                 product.setBarcode(resultSet.getString("barcode"));
+                product.setVatable(resultSet.getBoolean("vatable"));
+                product.setVat(resultSet.getDouble("vat_amount"));
 
                 Timestamp timestamp = resultSet.getTimestamp("dateCreated");
                 String time_created = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
@@ -170,8 +173,8 @@ public class MySqlAccess {
             for (Item item : transaction.getItems()) {
                 preparedStatement = connect
                         .prepareStatement("insert into  " + databaseName + ".item " +
-                                "(productid, quantity, price,discount, invoice_id, total) " +
-                                " values (?, ?, ?, ?, ?,?)");
+                                "(productid, quantity, price,discount, invoice_id, total,vat_amount) " +
+                                " values (?, ?, ?, ?, ?,?,?)");
 
                 preparedStatement.setInt(1, item.getProductId());
                 preparedStatement.setDouble(2, item.getQuantity());
@@ -179,6 +182,7 @@ public class MySqlAccess {
                 preparedStatement.setDouble(4, item.getDiscount());
                 preparedStatement.setInt(5, invoice_id);
                 preparedStatement.setDouble(6, item.getTotalPrice());
+                preparedStatement.setDouble(7, item.getVat_amount());
                 preparedStatement.executeUpdate();
             }
         } catch (Exception e) {
@@ -649,59 +653,6 @@ public class MySqlAccess {
     }
 
 
-//    public ArrayList<StockItem> getStock() throws Exception {
-//        ArrayList<StockItem> stock = new ArrayList<>();
-//        try {
-//            dbConnect();
-//            //TODO: query leaves out the sales transactions to minimize the size of returned data. Improve the UI With
-//            // filter options so user can select only the required info
-//            preparedStatement = connect
-//                    .prepareStatement("SELECT stock.* , product.productName, location.location, source_dest.source_dest FROM " +
-//                            databaseName + ".stock " +
-//                            "LEFT JOIN " + databaseName + ".location ON stock.location_id = location.id " +
-//                            "LEFT JOIN " + databaseName + ".source_dest ON stock.source_dest_id = source_dest.id " +
-//                            "LEFT JOIN " + databaseName + ".product ON stock.productId = product.productId WHERE " +
-//                            "(location_id, direction, source_dest_id) != (2,'out', 2) ORDER BY lastmodifieddate DESC;");
-//
-//            //select * from stock where (location, direction, source_dest) != ('shop','out', 'customer');
-//            resultSet = preparedStatement.executeQuery();
-//            while (resultSet.next()) {
-//                StockItem stockItem = new StockItem();
-//                stockItem.setTransactionId(resultSet.getInt("transactionid"));
-//                stockItem.setQuantity(resultSet.getInt("quantity"));
-//                stockItem.setBalance(resultSet.getDouble("balance"));
-//                stockItem.setProductId(resultSet.getInt("productId"));
-//                stockItem.setProductName(resultSet.getString("productName"));
-//
-//                Site location = new Site(resultSet.getInt("location_id"),resultSet.getString("location"));
-//                Site source_dest = new Site(resultSet.getInt("source_dest_id"),resultSet.getString("source_dest"));
-//                stockItem.setLocation(location);
-//                stockItem.setSource_dest(source_dest);
-//                stockItem.setDirection(Direction.valueOf(resultSet.getString("direction")));
-//
-//
-//                Timestamp timestamp = resultSet.getTimestamp("dateCreated");
-//                String dateCreated = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
-//                stockItem.setDateCreated(dateCreated);
-//
-//                timestamp = resultSet.getTimestamp("lastmodifieddate");
-//                String date_modified = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
-//                stockItem.setLastModifiedDate(date_modified);
-//
-//                stockItem.setComment(resultSet.getString("comments"));
-//                stockItem.setTransactionId(resultSet.getInt("transactionid"));
-//                stock.add(stockItem);
-//            }
-//
-//            return stock;
-//        } catch (Exception e) {
-//            throw e;
-//        } finally {
-//            close();
-//
-//        }
-//
-//    }
 
     public ArrayList<StockItem> getStock() throws Exception {
         ArrayList<StockItem> stock = new ArrayList<>();
@@ -709,14 +660,6 @@ public class MySqlAccess {
             dbConnect();
 
             //TODO note the 100 records limit - may need to indicate on the jtable that only last 100 records are displayed
-//            preparedStatement = connect
-//                    .prepareStatement("SELECT stock.* , product.productName, location.location, source_dest.source_dest FROM " +
-//                            databaseName + ".stock " +
-//                            "LEFT JOIN " + databaseName + ".location ON stock.location_id = location.id " +
-//                            "LEFT JOIN " + databaseName + ".source_dest ON stock.source_dest_id = source_dest.id " +
-//                            "LEFT JOIN " + databaseName + ".product ON stock.productId = product.productId WHERE " +
-//                            "(location_id, direction, source_dest_id) != (2,'out', 2) ORDER BY datecreated DESC limit 100;");
-
             preparedStatement = connect
                     .prepareStatement("SELECT stock.* , product.productName, location.location, source_dest.source_dest FROM " +
                             databaseName + ".stock " +
@@ -739,6 +682,54 @@ public class MySqlAccess {
                 Site source_dest = new Site(resultSet.getInt("source_dest_id"),resultSet.getString("source_dest"));
                 stockItem.setLocation(location);
                 stockItem.setSource_dest(source_dest);
+                stockItem.setDirection(Direction.valueOf(resultSet.getString("direction")));
+
+
+                Timestamp timestamp = resultSet.getTimestamp("dateCreated");
+                String dateCreated = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
+                stockItem.setDateCreated(dateCreated);
+
+                timestamp = resultSet.getTimestamp("lastmodifieddate");
+                String date_modified = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
+                stockItem.setLastModifiedDate(date_modified);
+
+                stockItem.setComment(resultSet.getString("comments"));
+                stockItem.setTransactionId(resultSet.getInt("transactionid"));
+                stock.add(stockItem);
+            }
+
+            return stock;
+        } catch (Exception e) {
+            throw e;
+        } finally {
+            close();
+        }
+    }
+
+    public ArrayList<StockItem> getStock(String products) throws Exception {
+        ArrayList<StockItem> stock = new ArrayList<>();
+        try {
+            dbConnect();
+
+            preparedStatement = connect
+                    .prepareStatement("select s.* from (select  productid, " +
+                            "max(datecreated) as maxdate from " + databaseName + ".stock group by productid) as x inner join stock as s on " +
+            "s.productid= x.productid and s.datecreated = x.maxdate where location_id=2 AND s.productid in " + products);
+
+            //select * from stock where (location, direction, source_dest) != ('shop','out', 'customer');
+            resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                StockItem stockItem = new StockItem();
+                stockItem.setTransactionId(resultSet.getInt("transactionid"));
+                stockItem.setQuantity(resultSet.getInt("quantity"));
+                stockItem.setBalance(resultSet.getDouble("balance"));
+                stockItem.setProductId(resultSet.getInt("productId"));
+//                stockItem.setProductName(resultSet.getString("productName"));
+
+//                Site location = new Site(resultSet.getInt("location_id"),resultSet.getString("location"));
+//                Site source_dest = new Site(resultSet.getInt("source_dest_id"),resultSet.getString("source_dest"));
+//                stockItem.setLocation(location);
+//                stockItem.setSource_dest(source_dest);
                 stockItem.setDirection(Direction.valueOf(resultSet.getString("direction")));
 
 
@@ -1027,6 +1018,7 @@ public class MySqlAccess {
 
             item.setInvoiceNumber(resultSet.getInt("invoice_id"));
             item.setTotalPrice(resultSet.getDouble("total"));
+            item.setVat_amount(resultSet.getDouble("vat_amount"));
             item.setMargin(resultSet.getDouble("margin"));
             item.setSellername(resultSet.getString("username"));
             String firstname =  resultSet.getString("firstname")!=null ? resultSet.getString("firstname") : "";
@@ -1080,6 +1072,7 @@ public class MySqlAccess {
             //item.setReceiptId(resultSet.getInt("receiptId"));
             item.setInvoiceNumber(resultSet.getInt("invoice_id"));
             item.setTotalPrice(resultSet.getDouble("total"));
+            item.setVat_amount(resultSet.getDouble("vat_amount"));
             item.setMargin(resultSet.getDouble("margin"));
             item.setSellername(resultSet.getString("username"));
             String firstname =  resultSet.getString("firstname")!=null ? resultSet.getString("firstname") : "";
@@ -1183,7 +1176,7 @@ public class MySqlAccess {
         dbConnect();
         preparedStatement = connect
                 .prepareStatement("select product.productname, sum(item.total) as sum, sum(item.quantity) " +
-                        "as productcount, sum(item.margin) as margin from " + databaseName + ".item left join " + databaseName + ".product on " +
+                        "as productcount, sum(item.vat_amount) as vat, sum(item.margin) as margin from " + databaseName + ".item left join " + databaseName + ".product on " +
                         "item.productid = product.productid " +
                         "left join " + databaseName + ".invoice on item.invoice_id = invoice.id " +
                         "WHERE invoice.date_created > ? AND invoice.date_created < ? GROUP BY product.productname;");
@@ -1207,6 +1200,7 @@ public class MySqlAccess {
             item.setQuantity(resultSet.getDouble("productcount"));
             //item.setProductId(resultSet.getInt("productId"));
             item.setTotalPrice(resultSet.getDouble("sum"));
+            item.setVat_amount(resultSet.getDouble("vat"));
             item.setMargin(resultSet.getDouble("margin"));
             items.add(item);
         }
@@ -1221,7 +1215,7 @@ public class MySqlAccess {
         dbConnect();
         preparedStatement = connect
                 .prepareStatement("select product.productname, sum(item.total) as sum, sum(item.quantity) " +
-                        "as productcount, sum(item.margin) as margin from " + databaseName + ".item left join " + databaseName + ".product on " +
+                        "as productcount, sum(item.vat_amount) as vat, sum(item.margin) as margin from " + databaseName + ".item left join " + databaseName + ".product on " +
                         "item.productid = product.productid " +
                         "left join " + databaseName + ".invoice on item.invoice_id = invoice.id " +
                         "WHERE product.productid = ? AND invoice.date_created > ? AND invoice.date_created < ? GROUP BY product.productname;");
@@ -1245,6 +1239,7 @@ public class MySqlAccess {
             item.setQuantity(resultSet.getDouble("productcount"));
             //item.setProductId(resultSet.getInt("productId"));
             item.setTotalPrice(resultSet.getDouble("sum"));
+            item.setVat_amount(resultSet.getDouble("vat"));
             item.setMargin(resultSet.getDouble("margin"));
             items.add(item);
         }
@@ -1476,6 +1471,9 @@ public class MySqlAccess {
         product.setUnits(resultSet.getString("units"));
         product.setStockLowThreshold(resultSet.getDouble("stock_low_threshold"));
         product.setBarcode(resultSet.getString("barcode"));
+        product.setVatable(resultSet.getBoolean("vatable"));
+        product.setVat(resultSet.getDouble("vat_amount"));
+        product.setMarkup(resultSet.getDouble("margin"));
 
         Timestamp timestamp = resultSet.getTimestamp("dateCreated");
         String time_created = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(timestamp);
@@ -1547,7 +1545,7 @@ public class MySqlAccess {
                     .prepareStatement("update " + databaseName + ".product set categoryid = ?," +
                             " productname = ?, description = ?, price = ?, barcode = ?," +
                             " lastmodifieddate = ?, comments = ?, units = ?, stock_low_threshold = ?, " +
-                            " costprice = ? where productid = ?;");
+                            " costprice = ?, vatable=? where productid = ?;");
 
             preparedStatement.setInt(1, product.getCategory().getCategoryId());
             preparedStatement.setString(2, product.getProductName());
@@ -1559,7 +1557,8 @@ public class MySqlAccess {
             preparedStatement.setString(8, product.getUnits());
             preparedStatement.setDouble(9, product.getStockLowThreshold());
             preparedStatement.setDouble(10, product.getCostprice());
-            preparedStatement.setInt(11, product.getProductId());
+            preparedStatement.setBoolean(11, product.isVatable());
+            preparedStatement.setInt(12, product.getProductId());
 
             preparedStatement.executeUpdate();
         } catch (Exception e) {
@@ -1872,6 +1871,26 @@ public class MySqlAccess {
         }
     }
 
+    public void deleteReceipts(ArrayList<Receipt> receipts) throws Exception {
+        try {
+            dbConnect();
+            for (Receipt receipt : receipts) {
+                preparedStatement = connect
+                        .prepareStatement("DELETE FROM " + databaseName + ".receipt " +
+                                "WHERE id = ?;");
+
+                preparedStatement.setInt(1, receipt.getReceiptId());
+                preparedStatement.executeUpdate();
+            }
+
+        } catch (Exception e) {
+            throw e;
+        } finally {
+            close();
+
+        }
+    }
+
     public void removeDeletedSales(ArrayList<Item> items) throws Exception {
         try {
             dbConnect();
@@ -2143,23 +2162,36 @@ public class MySqlAccess {
         }
     }
 
-    public ArrayList<CustomerTransaction> getCustomerTransactions(int customerId) throws Exception {
+    public ArrayList<CustomerTransaction> getCustomerTransactions(int customerId, String startDate, String endDate) throws Exception {
         ArrayList<CustomerTransaction> customerTransactions = new ArrayList<>();
         try {
             dbConnect();
             preparedStatement = connect
-                    .prepareStatement("SELECT customer_statement.*, customer.*, statement_invoice.invoice_id FROM  " + databaseName + ".customer_statement " +
+                    .prepareStatement("SELECT customer_statement.*, customer.*, statement_invoice.invoice_id, statement_receipt.receipt_id" +
+                            " FROM  " + databaseName + ".customer_statement " +
                             "left join " + databaseName + ".customer on customer.id = customer_statement.customer_id " +
                             "left join " + databaseName + ".statement_invoice on customer_statement.id = statement_invoice.statement_id " +
-                            "where customer_statement.customer_id = ? order by customer_statement.date_entered asc;");
+                            "left join " + databaseName + ".statement_receipt on customer_statement.id = statement_receipt.statement_id " +
+                            "where customer_statement.customer_id = ? " +
+                            "AND (customer_statement.date_entered >= ? AND customer_statement.date_entered <=?) " +
+                            " order by customer_statement.date_entered DESC;");
             preparedStatement.setInt(1, customerId);
+
+            //TODO: remove hard coded values
+            Timestamp startTimestamp = Timestamp.valueOf(startDate + " 00:00:00");
+            Timestamp endTimestamp = Timestamp.valueOf(endDate + " 23:59:59");
+
+
+            preparedStatement.setTimestamp(2, startTimestamp);
+            preparedStatement.setTimestamp(3, endTimestamp);
+
             resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 CustomerTransaction customerTransaction = new CustomerTransaction();
                 customerTransaction.setCustomerId(resultSet.getInt("customer_id"));
                 customerTransaction.setBalance(resultSet.getDouble("balance"));
                 customerTransaction.setReceiptId(resultSet.getInt("invoice_id")); //TODO: should be renamed as it is the invoice_id
-                //customerTransaction.setUserName(resultSet.getString("username"));
+                customerTransaction.setRecId(resultSet.getInt("receipt_id"));
                 customerTransaction.setAmount(resultSet.getDouble("amount"));
                 customerTransaction.setFirstName(resultSet.getString("firstname"));
                 customerTransaction.setLastName(resultSet.getString("lastname"));
@@ -2184,6 +2216,8 @@ public class MySqlAccess {
 
         }
     }
+
+
 
     public void addCustomer(Customer customer) throws Exception {
         try {
@@ -3546,5 +3580,60 @@ public class MySqlAccess {
         }
         close();
         return items;
+    }
+
+    public void updateVat(int productId, boolean isVatable) {
+        try {
+            //load the mysql driver
+            dbConnect();
+            preparedStatement = connect
+                    .prepareStatement("update " + databaseName + ".product set vatable = ? " +
+                            "where productid = ?;");
+            preparedStatement.setBoolean(1, isVatable);
+            preparedStatement.setInt(2, productId);
+
+            preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            close();
+        }
+
+    }
+
+    public void updateVatForSoldItems(Item item, double vat) {
+        try {
+            //load the mysql driver
+            dbConnect();
+            preparedStatement = connect
+                    .prepareStatement("update " + databaseName + ".item set vat_amount = ? " +
+                            "where id = ?;");
+            preparedStatement.setDouble(1, item.getQuantity()*vat);
+
+            preparedStatement.setInt(2, item.getTransactionId());
+
+            preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            close();
+        }
+    }
+
+    public int deleteUser(String username) throws Exception {
+        try {
+            dbConnect();
+
+            preparedStatement = connect
+                    .prepareStatement("DELETE FROM " + databaseName + ".users WHERE username = ? ;");
+            preparedStatement.setString(1, username);
+            return preparedStatement.executeUpdate();
+
+        } catch (Exception e) {
+            throw e;
+        } finally {
+            close();
+
+        }
     }
 }

@@ -80,6 +80,9 @@ public class Printer implements Printable {
         y += lineHeight;
         g.drawString(underline, 0, y);
         int MAX_CHAR = 15;
+
+        double vatTotal = 0.0;
+
         for (Item item : transaction.getItems()) {
             String inputString = item.getProductName();
             int maxLength = (inputString.length() < MAX_CHAR) ? inputString.length() : MAX_CHAR;
@@ -101,6 +104,8 @@ public class Printer implements Printable {
             g.drawString(String.format("%-11s",item.getUnits()), 113, y);
             g.drawString(String.format("%,-10.0f",item.getPrice()), 135, y);
             g.drawString(String.format("%,-10.0f",item.getTotalPrice()), 166, y);
+
+            vatTotal += item.getVat_amount()* item.getQuantity();
         }
         y += lineHeight;
         g.drawString(underlineSubtotal, 0, y);
@@ -130,10 +135,29 @@ public class Printer implements Printable {
         }
 
 
-        y += lineHeight*1;
 
         g2d.setFont(fontplain);
-        g.drawString(String.format("%s \n", "Thank you. Please come again.") ,0, y);
+
+        if(vatTotal>0) {
+            y += lineHeight*2;
+
+            g.drawString(String.format("%s \n", "Prices include VAT where applicable."), 0, y);
+
+//        String heading2 = String.format("%-17s %16s %6s %6s %9s\n", "Item", "Qty", "Unit", "Price", "Total");
+//
+//        g.drawString(heading2, 0, y);
+
+            y += lineHeight * 1;
+
+            g.drawString(String.format("%-10s  %,-11.2f", "VAT(18%)   - ", vatTotal), 0, y);
+
+            y += lineHeight*1;
+
+            g.drawString(underline, 0, y);
+        }
+        y += lineHeight*2;
+
+        g.drawString(String.format("%s \n", "Thank you.") ,0, y);
         y += lineHeight;
         g.drawString(String.format("%s %2s \n", "You were served by:",receiptHeader.getUserName()),0, y);
 

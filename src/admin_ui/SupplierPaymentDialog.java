@@ -157,7 +157,15 @@ public class SupplierPaymentDialog extends JDialog {
                 payment.setAmount(amount);
                 payment.setDescription(paymentDescriptionTextField.getText());
                 payment.setSupplier_id(supplierId);
-                String paymentType = paymentTypecomboBox.getSelectedItem().toString()=="Payment".toString()? "p" : "a";
+//                String paymentType = paymentTypecomboBox.getSelectedItem().toString()=="Payment".toString()? "p" : "a";
+                String paymentType ="";
+                if(paymentTypecomboBox.getSelectedItem().toString()=="Payment".toString()){
+                    paymentType = "p";
+                }else if(paymentTypecomboBox.getSelectedItem().toString()=="reduce_balance".toString()){
+                    paymentType="r";
+                }else if(paymentTypecomboBox.getSelectedItem().toString()=="increase_balance".toString()){
+                    paymentType="i";
+                }
                 payment.setPaymentType(paymentType);
                 mAcess.submitPayment(payment);
                 //resetFormFields(paySupplierPanel);
